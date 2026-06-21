@@ -46,6 +46,7 @@ const {
 } = require("../scripts/lib/market-context");
 
 const config = require("../configs/weibo.default.json");
+const tjConfig = require("../configs/x-tj-research.json");
 
 function sampleRaw() {
   return {
@@ -197,6 +198,13 @@ test("selects topic-specific market symbols for macro and China asset questions"
   assert.ok(china.includes("FXI"));
   assert.ok(generic.includes("SPY"));
   assert.ok(!generic.includes("SOXX"));
+});
+
+test("selects US index symbols for QQQ and Nasdaq questions", () => {
+  const symbols = symbolsForQuestion("7月份美股QQQ会怎么走？").map((item) => item.symbol);
+
+  assert.deepEqual(symbols.slice(0, 4), ["QQQ", "SPY", "RSP", "IWM"]);
+  assert.ok(symbols.includes("TLT"));
 });
 
 test("maps market symbols to Futu codes and parses Skill JSON with logs", () => {
@@ -1248,6 +1256,62 @@ test("refuses unsupported questions instead of defaulting to the largest domain"
   assert.equal(answer.likely_judgment_model, null);
   assert.equal(answer.action_tendency, "拒答或降低置信度");
   assert.equal(answer.boundaries_and_confidence.confidence, "low");
+});
+
+test("routes TJ Research QQQ index outlook questions to macro liquidity model", () => {
+  const profile = {
+    profile_id: "x-test-tj",
+    platform: "x",
+    domain_map: {
+      macro_fed_liquidity: { unit_count: 30 }
+    },
+    mental_models: [
+      {
+        id: "model_macro_fed_liquidity",
+        domains: ["macro_fed_liquidity"],
+        variables: tjConfig.domains.macro_fed_liquidity.variables,
+        evidence_unit_ids: ["tj_macro_1", "tj_macro_2", "tj_macro_3"],
+        limitations: ["Real-time factual claims require external verification."]
+      }
+    ],
+    honest_boundaries: ["This is a corpus-backed judgment approximation."]
+  };
+  const units = [
+    {
+      unit_id: "tj_macro_1",
+      source_post_id: "x1",
+      created_at: "2026-06-01",
+      claim: "美股指数估值和 EPS 是判断 QQQ 后市的重要变量。",
+      evidence_excerpt: "美股指数估值(Forward PE)没有泡沫，因为未来一年预期盈利增速很快。"
+    },
+    {
+      unit_id: "tj_macro_2",
+      source_post_id: "x2",
+      created_at: "2026-06-02",
+      claim: "纳指估值偏高时要考虑回调和降 beta。",
+      evidence_excerpt: "纳指估值30X，继续每往上涨2%，减X仓位，或移动止盈。"
+    },
+    {
+      unit_id: "tj_macro_3",
+      source_post_id: "x3",
+      created_at: "2026-06-03",
+      claim: "美股走势要结合通胀、利率、流动性和资产价格影响。",
+      evidence_excerpt: "美股的核心是基本面大于宏观，但情绪面太高，宏观风险就会凸显。"
+    }
+  ];
+
+  const answer = answerQuestion({
+    question: "7月份美股QQQ会怎么走？",
+    profile,
+    units,
+    config: tjConfig
+  });
+
+  assert.equal(answer.question_classification, "macro_fed_liquidity");
+  assert.equal(answer.likely_judgment_model.id, "model_macro_fed_liquidity");
+  assert.match(answer.direct_answer, /QQQ|纳指/);
+  assert.doesNotMatch(answer.direct_answer, /不支持/);
+  assert.ok(answer.evidence_trace.length >= 3);
 });
 
 test("runs validation cases against answer engine outputs", () => {

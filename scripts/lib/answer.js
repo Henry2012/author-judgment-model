@@ -114,11 +114,25 @@ function evidenceMatchScore(unit, terms) {
 function buildEvidenceTrace(model, units, options = {}) {
   const unitById = new Map(units.map((unit) => [unit.unit_id, unit]));
   const terms = evidenceTermsFor(options.question || "", options.config || {}, options.domain || "");
-  return (model?.evidence_unit_ids || [])
-    .map((unitId) => unitById.get(unitId))
-    .filter(Boolean)
-    .map((unit, index) => ({ unit, index, score: evidenceMatchScore(unit, terms) }))
-    .sort((a, b) => b.score - a.score || a.index - b.index)
+  const modelRank = new Map((model?.evidence_unit_ids || []).map((unitId, index) => [unitId, index]));
+  const candidates = Array.from(
+    new Map(
+      [
+        ...(model?.evidence_unit_ids || []).map((unitId) => unitById.get(unitId)),
+        ...units.filter((unit) => unit.domain === options.domain)
+      ]
+        .filter(Boolean)
+        .map((unit) => [unit.unit_id, unit])
+    ).values()
+  );
+  return candidates
+    .map((unit, index) => ({
+      unit,
+      index,
+      score: evidenceMatchScore(unit, terms),
+      modelIndex: modelRank.has(unit.unit_id) ? modelRank.get(unit.unit_id) : Number.MAX_SAFE_INTEGER
+    }))
+    .sort((a, b) => b.score - a.score || a.modelIndex - b.modelIndex || a.index - b.index)
     .slice(0, 5)
     .map(({ unit }) => ({
       unit_id: unit.unit_id,
@@ -176,6 +190,15 @@ function directConclusionFor({ question, domain, variables, config, concept }) {
       "更接近的结论是：美股半导体仍应先看 AI 需求是否继续兑现、算力供给是否紧、数据中心资本开支是否持续、电力/供应链约束是否强化，以及估值是否已经提前透支。",
       "如果这些变量继续共振，板块更像是仍在主线内寻找结构性机会；如果只是短线情绪升温、估值抬高但基本面和资本开支没有新增证据，则应降低追涨冲动，等待财报、指引或回撤后的风险收益改善。",
       "7月这种具体时间窗口需要实时行情、估值和财报日程外部核验，AJM 这里只能给判断框架和倾向，不能给确定买卖指令。"
+    ].join("");
+  }
+
+  if (domain === "macro_fed_liquidity" && containsAny(text, ["qqq", "QQQ", "纳指", "纳斯达克", "美股", "指数", "标普", "SPY", "7月", "下半年", "走势"])) {
+    return [
+      `按该作者判断模型，这个问题属于「${domainLabel}」，可以回答，但不能简化成“7月一定涨/跌”。`,
+      "更接近的结论是：先看 QQQ/纳指所处的估值位置、EPS 预期、涨幅与参与度，再看通胀数据、美联储反应函数、长债利率和流动性是否配合。",
+      "如果盈利预期仍能兑现、利率/流动性没有明显反向冲击，指数更像是在高位震荡中继续寻找结构性机会；如果估值已经偏高、情绪 FOMO 且通胀或长债利率反弹，则要预设 5% 级别回调风险，用降 beta、移动止盈或控制仓位处理。",
+      "因此这类问题应给概率判断：用实时行情、估值和宏观数据合成，而不是直接给确定预测。"
     ].join("");
   }
 

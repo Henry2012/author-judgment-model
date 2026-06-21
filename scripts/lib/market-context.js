@@ -40,6 +40,15 @@ const MARKET_SYMBOL_GROUPS = {
     { symbol: "UUP", name: "US Dollar Bullish ETF" },
     { symbol: "GLD", name: "Gold ETF" }
   ],
+  usIndex: [
+    { symbol: "QQQ", name: "Nasdaq 100 ETF" },
+    { symbol: "SPY", name: "S&P 500 ETF" },
+    { symbol: "RSP", name: "S&P 500 Equal Weight ETF" },
+    { symbol: "IWM", name: "Russell 2000 ETF" },
+    { symbol: "XLK", name: "Technology Select Sector SPDR" },
+    { symbol: "TLT", name: "20+ Year Treasury Bond ETF" },
+    { symbol: "IEF", name: "7-10 Year Treasury Bond ETF" }
+  ],
   crypto: [
     { symbol: "BTC-USD", name: "Bitcoin" },
     { symbol: "ETH-USD", name: "Ethereum" },
@@ -116,6 +125,7 @@ function returnsForSeries(points) {
 function symbolsForQuestion(question) {
   const text = cleanText(question);
   if (/(半导体|芯片|算力|人工智能|\bAI\b|英伟达|\bNVDA\b|\bAMD\b|博通|\bAVGO\b|台积电|\bTSM\b)/iu.test(text)) return MARKET_SYMBOL_GROUPS.semiconductor;
+  if (/(QQQ|纳指|纳斯达克|Nasdaq|美股指数|标普|SPY|SPX|RSP|罗素|IWM|指数|7月.*美股|美股.*走势|美股.*后市)/iu.test(text)) return MARKET_SYMBOL_GROUPS.usIndex;
   if (/(大型科技|软件|云|cloud|agent|微软|\bMSFT\b|苹果|\bAAPL\b|亚马逊|\bAMZN\b|谷歌|\bGOOGL\b|Meta|\bMETA\b|Oracle|\bORCL\b|Salesforce|\bCRM\b)/iu.test(text)) return MARKET_SYMBOL_GROUPS.bigTech;
   if (/(宏观|利率|美联储|Fed|流动性|通胀|债券|国债|美元|VIX|波动率)/iu.test(text)) return MARKET_SYMBOL_GROUPS.macro;
   if (/(加密|Crypto|Bitcoin|BTC|Ethereum|ETH|稳定币|Coinbase|COIN|CRCL)/iu.test(text)) return MARKET_SYMBOL_GROUPS.crypto;
@@ -145,7 +155,7 @@ function contextFromRows({ question, rows, provider = "public-market-data", asOf
       ? `板块/指数：${etfs.map((row) => `${row.symbol} 最新 ${row.latest.toFixed(2)}，1日 ${formatPct(row.oneDayPct)}，1月 ${formatPct(row.oneMonthPct)}，3月 ${formatPct(row.threeMonthPct)}`).join("；")}。`
       : "",
     stocks.length
-      ? `核心股票：${stocks.map((row) => `${row.symbol} 最新 ${row.latest.toFixed(2)}，1日 ${formatPct(row.oneDayPct)}，1月 ${formatPct(row.oneMonthPct)}`).join("；")}。`
+      ? `相关标的：${stocks.map((row) => `${row.symbol} 最新 ${row.latest.toFixed(2)}，1日 ${formatPct(row.oneDayPct)}，1月 ${formatPct(row.oneMonthPct)}`).join("；")}。`
       : "",
     leaders.length ? `近1月相对强势：${leaders.map((row) => `${row.symbol} ${formatPct(row.oneMonthPct)}`).join("、")}。` : "",
     laggards.length ? `近1月相对弱势：${laggards.map((row) => `${row.symbol} ${formatPct(row.oneMonthPct)}`).join("、")}。` : "",
