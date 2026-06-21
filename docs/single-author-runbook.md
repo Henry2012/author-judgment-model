@@ -56,6 +56,26 @@ Acceptance:
 - v2.1 concept discovery must produce `concept-candidates.json`, `concept-review-template.json`, and `concept-review.md`.
 - Accepted concepts from `concept-review-template.json` must be written into `profile.concepts` before final packaging.
 
+## 0.2. AJM v2.4 Core Asset Routing Gate
+
+For investment or market authors, core market objects must be forced-routable before ordinary keyword scoring. They are not optional concepts and must not depend on accidental keyword overlap.
+
+Required routable objects:
+
+- US indices: `QQQ`, `SPY`, Nasdaq / 纳指, S&P 500 / 标普, `RSP`, `IWM`
+- US big tech: 大科技, Microsoft / `MSFT`, Apple / `AAPL`, Amazon / `AMZN`, Google / `GOOGL`, Meta / `META`
+- AI / semiconductors: 半导体, 算力, `NVDA`, `AMD`, `AVGO`, `TSM`, `ASML`, `QCOM`, `MU`
+- Crypto: `BTC`, `ETH`, stablecoin / 稳定币, `COIN`, `MSTR`
+- China assets: 港股, 中概, 中国资产, `KWEB`, `FXI`, `BABA`, `PDD`, Tencent / 腾讯
+
+Acceptance:
+
+- `scripts/lib/core-assets.js` contains a route for each required object group.
+- CLI answer classification routes each object group to the strongest available author domain before fallback keyword scoring.
+- Browser package classification uses the same core asset routing behavior as the CLI.
+- Market context generation maps each object group to an explicit Futu/public data basket.
+- Regression tests cover QQQ/SPY, big tech, semiconductors, BTC/crypto, and Hong Kong/China ADR questions.
+
 ## 1. Build First-Pass Author Unit
 
 ```sh

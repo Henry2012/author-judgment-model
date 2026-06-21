@@ -8,6 +8,7 @@ const {
   localizeBoundaries,
   localizedModelSummary
 } = require("./zh-localize");
+const { forcedDomainForQuestion } = require("./core-assets");
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
@@ -60,6 +61,9 @@ function matchConcept(question, profile, config = {}) {
 function classifyQuestion(question, config, profile) {
   const concept = matchConcept(question, profile, config);
   if (concept?.domains?.length) return concept.domains[0];
+
+  const forced = forcedDomainForQuestion(question, config);
+  if (forced) return forced.domainId;
 
   const text = cleanText(question);
   const scored = Object.entries(config.domains || {})

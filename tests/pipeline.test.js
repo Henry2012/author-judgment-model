@@ -44,6 +44,7 @@ const {
   futuCodeForSymbol,
   parseJsonFromMixedOutput
 } = require("../scripts/lib/market-context");
+const { matchCoreAssetRoute, forcedDomainForQuestion } = require("../scripts/lib/core-assets");
 
 const config = require("../configs/weibo.default.json");
 const tjConfig = require("../configs/x-tj-research.json");
@@ -205,6 +206,22 @@ test("selects US index symbols for QQQ and Nasdaq questions", () => {
 
   assert.deepEqual(symbols.slice(0, 4), ["QQQ", "SPY", "RSP", "IWM"]);
   assert.ok(symbols.includes("TLT"));
+});
+
+test("core asset objects are forced routable before keyword scoring", () => {
+  const cases = [
+    ["7月份美股QQQ会怎么走？", "us_index", "macro_fed_liquidity"],
+    ["SPY 和标普下半年怎么看？", "us_index", "macro_fed_liquidity"],
+    ["大科技还能继续买吗？", "big_tech", "big_tech_software_cloud"],
+    ["半导体板块还能追吗？", "semiconductor", "ai_semis_infrastructure"],
+    ["BTC 这里还能配置吗？", "crypto", "crypto_stablecoin"],
+    ["港股中概还有机会吗？", "china_assets", "china_policy_geopolitics"]
+  ];
+
+  for (const [question, routeId, domainId] of cases) {
+    assert.equal(matchCoreAssetRoute(question)?.id, routeId);
+    assert.equal(forcedDomainForQuestion(question, tjConfig)?.domainId, domainId);
+  }
 });
 
 test("maps market symbols to Futu codes and parses Skill JSON with logs", () => {

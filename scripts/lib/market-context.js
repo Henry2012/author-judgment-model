@@ -2,6 +2,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { execFile } = require("child_process");
+const { matchCoreAssetRoute } = require("./core-assets");
 
 const DEFAULT_SEMICONDUCTOR_SYMBOLS = [
   { symbol: "SOXX", name: "iShares Semiconductor ETF" },
@@ -124,12 +125,9 @@ function returnsForSeries(points) {
 
 function symbolsForQuestion(question) {
   const text = cleanText(question);
-  if (/(半导体|芯片|算力|人工智能|\bAI\b|英伟达|\bNVDA\b|\bAMD\b|博通|\bAVGO\b|台积电|\bTSM\b)/iu.test(text)) return MARKET_SYMBOL_GROUPS.semiconductor;
-  if (/(QQQ|纳指|纳斯达克|Nasdaq|美股指数|标普|SPY|SPX|RSP|罗素|IWM|指数|7月.*美股|美股.*走势|美股.*后市)/iu.test(text)) return MARKET_SYMBOL_GROUPS.usIndex;
-  if (/(大型科技|软件|云|cloud|agent|微软|\bMSFT\b|苹果|\bAAPL\b|亚马逊|\bAMZN\b|谷歌|\bGOOGL\b|Meta|\bMETA\b|Oracle|\bORCL\b|Salesforce|\bCRM\b)/iu.test(text)) return MARKET_SYMBOL_GROUPS.bigTech;
+  const route = matchCoreAssetRoute(text);
+  if (route && MARKET_SYMBOL_GROUPS[route.marketGroup]) return MARKET_SYMBOL_GROUPS[route.marketGroup];
   if (/(宏观|利率|美联储|Fed|流动性|通胀|债券|国债|美元|VIX|波动率)/iu.test(text)) return MARKET_SYMBOL_GROUPS.macro;
-  if (/(加密|Crypto|Bitcoin|BTC|Ethereum|ETH|稳定币|Coinbase|COIN|CRCL)/iu.test(text)) return MARKET_SYMBOL_GROUPS.crypto;
-  if (/(中国资产|中概|港股|A股|地缘|政策风险|KWEB|FXI|阿里|腾讯|拼多多|百度|京东)/iu.test(text)) return MARKET_SYMBOL_GROUPS.china;
   return MARKET_SYMBOL_GROUPS.general;
 }
 
