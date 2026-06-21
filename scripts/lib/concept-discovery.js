@@ -225,6 +225,72 @@ const tradingSignals = {
   time: ["回踩", "加速区", "加速", "月底", "7月底", "七月底", "短期", "中期", "趋势", "反弹", "持有到"]
 };
 
+const tradingDomainConcepts = {
+  ai_semis_infrastructure: {
+    id: "ai_compute_semis_infrastructure",
+    name: "AI / 算力 / 半导体基础设施",
+    aliases: ["AI", "人工智能", "算力", "半导体", "芯片", "英伟达", "NVDA", "台积电", "TSM", "数据中心", "电力", "资本开支"],
+    required_variables: ["ai_demand", "compute_supply", "power_constraint", "capex_cycle", "supply_chain_position", "valuation", "risk_reward"],
+    trigger: "问题询问 AI、算力、半导体、芯片、数据中心、电力或资本开支是否仍构成投资主线。",
+    boundary: "不能只因 AI 热度或单一龙头上涨就给结论，必须同时看需求、供给、电力约束、资本开支、估值和风险收益。",
+    counterexample: "只有题材情绪或价格上涨、缺少需求/供给/估值证据时不应套用。"
+  },
+  big_tech_software_cloud: {
+    id: "us_big_tech_software_cloud",
+    name: "美股大型科技与软件云",
+    aliases: ["大型科技", "美股科技", "软件云", "云", "AI Agent", "智能体", "微软", "MSFT", "谷歌", "GOOGL", "亚马逊", "AMZN", "META"],
+    required_variables: ["distribution", "enterprise_trust", "cloud_revenue", "agent_adoption", "data_control", "margin", "competitive_moat"],
+    trigger: "问题询问美股大型科技、软件云、AI Agent、企业分发或云业务竞争力。",
+    boundary: "不能只看单个产品发布或模型能力，必须回到分发、企业信任、云收入、数据控制、利润率和护城河。",
+    counterexample: "只有产品热度但缺少企业采用、收入或利润率证据时不应套用。"
+  },
+  macro_fed_liquidity: {
+    id: "macro_fed_liquidity_cycle",
+    name: "宏观利率 / Fed / 流动性",
+    aliases: ["宏观", "利率", "Fed", "美联储", "降息", "通胀", "CPI", "PCE", "美债", "流动性", "TGA", "QT", "QE"],
+    required_variables: ["inflation_path", "fed_reaction_function", "liquidity_condition", "treasury_cash_balance", "reserve_level", "fiscal_impulse", "asset_price_impact"],
+    trigger: "问题询问利率、美联储、降息、通胀、美债、TGA、准备金或流动性变化对资产价格的影响。",
+    boundary: "不能把单次数据或新闻直接等同于政策转向，必须看联储反应函数、财政/流动性传导和资产价格影响。",
+    counterexample: "缺少政策反应函数或资产价格传导路径时不应套用。"
+  },
+  company_fundamental_research: {
+    id: "company_fundamental_earnings_catalyst",
+    name: "个股基本面与财报催化",
+    aliases: ["个股", "基本面", "财报", "估值", "PE", "营收", "利润", "毛利", "指引", "管理层", "商业模式", "护城河", "催化"],
+    required_variables: ["revenue_growth", "margin_profile", "valuation_multiple", "management_guidance", "business_moat", "demand_supply_balance", "research_depth"],
+    trigger: "问题询问某只个股是否可以买、持有、等待财报或依赖基本面/估值催化。",
+    boundary: "不能只靠 K 线、消息或短线情绪替代财报、估值、商业模式和行业研究。",
+    counterexample: "缺少财报、估值、业务质量或催化证据时不应套用。"
+  },
+  portfolio_risk_positioning: {
+    id: "portfolio_risk_budget_stop_loss",
+    name: "组合仓位 / 风险预算 / 止损",
+    aliases: ["组合", "仓位", "加仓", "减仓", "清仓", "止损", "止盈", "回撤", "风险预算", "退出计划", "持有"],
+    required_variables: ["position_size", "conviction_source", "drawdown_tolerance", "risk_budget", "fundamental_thesis", "technical_timing", "exit_plan"],
+    trigger: "问题询问仓位、加仓、减仓、止损、止盈、回撤承受或能否继续持有。",
+    boundary: "不能替代个人账户风险承受能力和交易计划，未明确仓位、止损和退出计划时不能给确定性买卖结论。",
+    counterexample: "没有风险预算、止损计划或 conviction 来源只是跟单时不应套用。"
+  },
+  crypto_stablecoin: {
+    id: "crypto_stablecoin_financial_infra",
+    name: "加密 / 稳定币 / 金融基础设施",
+    aliases: ["Crypto", "加密", "稳定币", "CRCL", "Circle", "BTC", "比特币", "MSTR", "IPO", "监管", "解禁"],
+    required_variables: ["stablecoin_adoption", "regulatory_risk", "valuation", "lockup_supply", "position_size", "market_sentiment", "thesis_durability"],
+    trigger: "问题询问稳定币、CRCL、BTC、加密资产或加密金融基础设施的投资逻辑。",
+    boundary: "不能只因赛道长期空间大就忽略监管、估值、解禁供给、市场情绪和仓位风险。",
+    counterexample: "只有市场情绪或赛道叙事、缺少采用/监管/估值证据时不应套用。"
+  },
+  china_policy_geopolitics: {
+    id: "china_assets_geopolitical_policy_risk",
+    name: "中国资产 / 地缘政策风险",
+    aliases: ["中国资产", "中国", "港股", "中概", "地缘", "政策", "关税", "出口管制", "稀土", "台湾", "贸易", "估值折价"],
+    required_variables: ["policy_direction", "geopolitical_risk", "tariff_impact", "export_control", "china_demand", "valuation_discount", "negotiation_path"],
+    trigger: "问题询问中国资产、港股中概、关税、出口管制、地缘政策或估值折价。",
+    boundary: "不能把单条谈判消息或政策传闻直接当成政策方向变化，必须拆开政策路径、贸易限制、需求和估值折价。",
+    counterexample: "没有政策路径、出口限制影响或估值折价判断时不应套用。"
+  }
+};
+
 function includesAny(text, terms) {
   return terms.some((term) => text.includes(term));
 }
@@ -298,13 +364,56 @@ function buildTradingStructureCandidate(units, options = {}) {
   return candidate;
 }
 
+function buildTradingDomainCandidates(units, options = {}) {
+  const minEvidenceUnits = Number(options.minEvidenceUnits || 3);
+  return Object.entries(tradingDomainConcepts)
+    .map(([domainId, template]) => {
+      const domainUnits = (units || []).filter((unit) => unit.domain === domainId);
+      if (domainUnits.length < minEvidenceUnits) return null;
+      const candidate = {
+        id: template.id,
+        name: template.name,
+        discovery_source: "trading_domain_split",
+        aliases: unique([...template.aliases, ...topTradingAliases(domainUnits), ...topValues(domainUnits, (unit) => termCandidates(unit), 6)]).slice(0, 16),
+        domains: [domainId],
+        trigger_conditions: unique([
+          ...domainUnits.flatMap((unit) => unit.trigger_conditions || []),
+          template.trigger
+        ]).slice(0, 10),
+        required_variables: unique([
+          ...template.required_variables,
+          ...domainUnits.flatMap((unit) => unit.variables || [])
+        ]).slice(0, 16),
+        boundary_conditions: unique([
+          ...domainUnits.flatMap((unit) => unit.boundary_conditions || []),
+          template.boundary,
+          fallbackBoundary(),
+          "不能仅因命中别名就给高置信结论。"
+        ]).slice(0, 10),
+        counterexamples: unique([
+          ...domainUnits.flatMap((unit) => unit.counterexamples || []),
+          template.counterexample
+        ]).slice(0, 10),
+        time_scope: topValues(domainUnits, (unit) => unit.time_scope, 1)[0] || dateRange(domainUnits),
+        evidence_unit_ids: domainUnits.map((unit) => unit.unit_id).slice(0, 36)
+      };
+      candidate.quality = qualityFor(candidate, options);
+      candidate.review_decision = "review";
+      return candidate;
+    })
+    .filter(Boolean);
+}
+
 function discoverConceptCandidates({ units, minEvidenceUnits = 3, maxCandidates = 30, strategy = "term" } = {}) {
   const options = { minEvidenceUnits };
-  const structuralCandidates = strategy === "trading" ? [buildTradingStructureCandidate(units, options)].filter(Boolean) : [];
+  const structuralCandidates =
+    strategy === "trading"
+      ? [buildTradingStructureCandidate(units, options), ...buildTradingDomainCandidates(units, options)].filter(Boolean)
+      : [];
   const termCandidates = strategy === "trading" ? [] : buildGroups(units).map((group) => buildConceptCandidate(group, options));
   const candidates = dedupeCandidates([...structuralCandidates, ...termCandidates]).slice(0, maxCandidates);
   return {
-    version: strategy === "trading" ? "0.2.2" : "0.2.1",
+    version: strategy === "trading" ? "0.2.3" : "0.2.1",
     generated_at: new Date().toISOString(),
     quality_gate: {
       min_evidence_units: Number(minEvidenceUnits),

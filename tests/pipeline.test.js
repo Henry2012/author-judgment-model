@@ -1804,7 +1804,7 @@ test("discovers trading concepts from structural signals instead of term fragmen
   const concept = result.candidates.find((item) => item.id === "trading_mainline_timing_risk");
 
   assert.ok(concept);
-  assert.equal(result.version, "0.2.2");
+  assert.equal(result.version, "0.2.3");
   assert.equal(concept.discovery_source, "trading_structure");
   assert.equal(concept.name, "主线-时机-风控交易框架");
   assert.equal(concept.quality.status, "pass");
@@ -1816,6 +1816,104 @@ test("discovers trading concepts from structural signals instead of term fragmen
   assert.ok(concept.boundary_conditions.some((item) => item.includes("加速区")));
   assert.ok(concept.counterexamples.some((item) => item.includes("止损")));
   assert.deepEqual(concept.evidence_unit_ids, ["trade_unit_000001", "trade_unit_000002", "trade_unit_000003"]);
+});
+
+test("splits broad trading structure into stable domain concepts", () => {
+  const domainSpecs = [
+    {
+      domain: "ai_semis_infrastructure",
+      object: "AI算力半导体基础设施",
+      claim: "AI算力、半导体、数据中心和电力约束需要一起判断。",
+      variables: ["ai_demand", "compute_supply", "power_constraint", "valuation"],
+      trigger: "问题询问 AI、算力、半导体或基础设施主线是否成立",
+      boundary: "不能只因 AI 热度就忽略估值、电力和资本开支约束",
+      counterexample: "只有情绪上涨但没有需求或供给证据时不适用"
+    },
+    {
+      domain: "big_tech_software_cloud",
+      object: "美股大型科技软件云",
+      claim: "大型科技、软件云和 AI Agent 要看分发、企业信任和云收入。",
+      variables: ["distribution", "enterprise_trust", "cloud_revenue", "margin"],
+      trigger: "问题询问大型科技、软件云或 AI Agent 的投资逻辑",
+      boundary: "不能只看单个产品发布就外推长期胜率",
+      counterexample: "缺少云收入或企业采用证据时不适用"
+    },
+    {
+      domain: "macro_fed_liquidity",
+      object: "宏观利率Fed流动性",
+      claim: "利率、美联储和流动性变化会影响资产定价和风险偏好。",
+      variables: ["inflation_path", "fed_reaction_function", "liquidity_condition", "asset_price_impact"],
+      trigger: "问题询问 Fed、降息、通胀、流动性或美债变化",
+      boundary: "不能把单次 CPI 或 PCE 读数直接等同于政策转向",
+      counterexample: "没有资产价格传导路径时不适用"
+    },
+    {
+      domain: "company_fundamental_research",
+      object: "个股基本面财报催化",
+      claim: "个股判断要看财报、指引、估值、商业模式和催化。",
+      variables: ["revenue_growth", "management_guidance", "valuation_multiple", "business_moat"],
+      trigger: "问题询问某只个股是否能买、持有或等待财报催化",
+      boundary: "不能只靠 K 线或消息面替代基本面研究",
+      counterexample: "没有财报、估值或业务证据时不适用"
+    },
+    {
+      domain: "portfolio_risk_positioning",
+      object: "组合仓位风险预算止损",
+      claim: "买入和持有必须结合仓位、风险预算、止损和退出计划。",
+      variables: ["position_size", "risk_budget", "stop_loss", "exit_plan"],
+      trigger: "问题询问仓位、加仓、减仓、止损或能否继续持有",
+      boundary: "不能替代个人账户风险承受能力和交易计划",
+      counterexample: "没有止损或风险预算时不能给确定性买卖结论"
+    },
+    {
+      domain: "crypto_stablecoin",
+      object: "加密稳定币金融基础设施",
+      claim: "稳定币、加密金融和 CRCL 需要看采用、监管、估值和供给。",
+      variables: ["stablecoin_adoption", "regulatory_risk", "valuation", "lockup_supply"],
+      trigger: "问题询问稳定币、CRCL、BTC 或加密金融基础设施",
+      boundary: "不能只因赛道长期空间大就忽略监管和解禁供给",
+      counterexample: "只有市场情绪没有采用或监管判断时不适用"
+    },
+    {
+      domain: "china_policy_geopolitics",
+      object: "中国资产地缘政策风险",
+      claim: "中国资产、港股中概和地缘风险要拆开政策、关税、出口管制和估值折价。",
+      variables: ["policy_direction", "geopolitical_risk", "tariff_impact", "valuation_discount"],
+      trigger: "问题询问中国资产、港股中概、关税、出口管制或地缘政策",
+      boundary: "不能把单条谈判消息直接当成政策方向变化",
+      counterexample: "没有政策路径或估值折价判断时不适用"
+    }
+  ];
+  const units = domainSpecs.flatMap((spec, specIndex) =>
+    [0, 1, 2].map((itemIndex) => ({
+      unit_id: `domain_unit_${String(specIndex).padStart(2, "0")}_${itemIndex}`,
+      source_post_id: `P${specIndex}_${itemIndex}`,
+      created_at: "2026-06-01",
+      domain: spec.domain,
+      claim: `${spec.claim} 第${itemIndex + 1}次证据。`,
+      object: spec.object,
+      variables: spec.variables,
+      trigger_conditions: [spec.trigger],
+      boundary_conditions: [spec.boundary],
+      counterexamples: [spec.counterexample],
+      confidence: "high",
+      evidence_strength: "direct",
+      evidence_excerpt: `${spec.claim} ${spec.boundary}`
+    }))
+  );
+
+  const result = discoverConceptCandidates({ units, minEvidenceUnits: 3, strategy: "trading" });
+  const ids = result.candidates.map((candidate) => candidate.id);
+
+  assert.equal(result.version, "0.2.3");
+  assert.ok(ids.includes("ai_compute_semis_infrastructure"));
+  assert.ok(ids.includes("us_big_tech_software_cloud"));
+  assert.ok(ids.includes("macro_fed_liquidity_cycle"));
+  assert.ok(ids.includes("company_fundamental_earnings_catalyst"));
+  assert.ok(ids.includes("portfolio_risk_budget_stop_loss"));
+  assert.ok(ids.includes("crypto_stablecoin_financial_infra"));
+  assert.ok(ids.includes("china_assets_geopolitical_policy_risk"));
+  assert.ok(result.candidates.every((candidate) => candidate.quality.status === "pass"));
 });
 
 test("exports concept review pack and applies accepted concepts to profile", () => {
