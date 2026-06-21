@@ -48,7 +48,8 @@ function buildWeiboAuthorUnit(options) {
         unitsPath: distill.unitsPath,
         outDir: path.join(reviewDir, "concepts"),
         minEvidenceUnits: options.minConceptEvidenceUnits,
-        maxCandidates: options.maxConceptCandidates
+        maxCandidates: options.maxConceptCandidates,
+        strategy: options.conceptDiscoveryStrategy
       })
     : null;
   const conceptApply = conceptDiscovery
@@ -102,7 +103,8 @@ function buildWeiboAuthorUnit(options) {
     config: {
       path: configPath,
       generated: Boolean(options.suggestConfig),
-      concept_discovery_enabled: Boolean(conceptDiscovery)
+      concept_discovery_enabled: Boolean(conceptDiscovery),
+      concept_discovery_strategy: options.conceptDiscoveryStrategy || "term"
     },
     artifacts: {
       data: dataDir,

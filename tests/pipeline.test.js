@@ -1656,6 +1656,73 @@ test("discovers concept candidates from repeated object terms without concept id
   assert.ok(concept.boundary_conditions.some((item) => item.includes("实时") || item.includes("历史语料")));
 });
 
+test("discovers trading concepts from structural signals instead of term fragments", () => {
+  const units = [
+    {
+      unit_id: "trade_unit_000001",
+      source_post_id: "T1",
+      created_at: "2026-05-01",
+      domain: "market_regime_mainline",
+      claim: "市场还是要围绕人工智能主线，非主线反弹不能追。",
+      object: "主线判断",
+      variables: ["mainline_clarity", "sector_leadership", "risk_reward"],
+      trigger_conditions: ["问题询问主线是否成立"],
+      boundary_conditions: ["非主线反弹不能当作主线"],
+      counterexamples: ["只有短线反弹但没有产业逻辑时不适用"],
+      confidence: "high",
+      evidence_strength: "direct",
+      evidence_excerpt: "市场还是要围绕人工智能主线，非主线反弹不能追。"
+    },
+    {
+      unit_id: "trade_unit_000002",
+      source_post_id: "T2",
+      created_at: "2026-05-02",
+      domain: "trend_structure_timing",
+      claim: "强势主线加速区不追涨，回踩或恐慌时再低吸。",
+      object: "买卖时机",
+      variables: ["trend_direction", "acceleration_phase", "entry_timing", "chase_risk"],
+      trigger_conditions: ["问题询问还能不能买、继续买或低吸"],
+      boundary_conditions: ["加速区不能无脑追涨"],
+      counterexamples: ["没有回踩质量时不适用"],
+      confidence: "high",
+      evidence_strength: "direct",
+      evidence_excerpt: "强势主线加速区不追涨，回踩或恐慌时再低吸。"
+    },
+    {
+      unit_id: "trade_unit_000003",
+      source_post_id: "T3",
+      created_at: "2026-05-03",
+      domain: "risk_position_management",
+      claim: "能不能持有到月底，要看仓位、止损和趋势是否失效。",
+      object: "持仓边界",
+      variables: ["position_size", "stop_loss", "holding_period", "trend_direction"],
+      trigger_conditions: ["问题询问持有到具体日期"],
+      boundary_conditions: ["不能替代实时行情和个人交易计划"],
+      counterexamples: ["没有止损计划时不能给持有结论"],
+      confidence: "medium",
+      evidence_strength: "direct",
+      evidence_excerpt: "能不能持有到月底，要看仓位、止损和趋势是否失效。"
+    }
+  ];
+
+  const result = discoverConceptCandidates({ units, minEvidenceUnits: 3, strategy: "trading" });
+  const concept = result.candidates.find((item) => item.id === "trading_mainline_timing_risk");
+
+  assert.ok(concept);
+  assert.equal(result.version, "0.2.2");
+  assert.equal(concept.discovery_source, "trading_structure");
+  assert.equal(concept.name, "主线-时机-风控交易框架");
+  assert.equal(concept.quality.status, "pass");
+  assert.deepEqual(concept.domains, ["market_regime_mainline", "trend_structure_timing", "risk_position_management"]);
+  assert.ok(concept.aliases.includes("主线"));
+  assert.ok(concept.aliases.includes("低吸"));
+  assert.ok(concept.aliases.includes("追涨"));
+  assert.ok(concept.trigger_conditions.some((item) => item.includes("还能不能买")));
+  assert.ok(concept.boundary_conditions.some((item) => item.includes("加速区")));
+  assert.ok(concept.counterexamples.some((item) => item.includes("止损")));
+  assert.deepEqual(concept.evidence_unit_ids, ["trade_unit_000001", "trade_unit_000002", "trade_unit_000003"]);
+});
+
 test("exports concept review pack and applies accepted concepts to profile", () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "ajm-concepts-"));
   const profilePath = path.join(tmp, "author-judgment-profile.json");

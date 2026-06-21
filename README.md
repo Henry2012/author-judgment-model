@@ -360,7 +360,7 @@ For a Weibo author, the latest execution flow is:
 5. Generate or run validation cases and persist validation results.
 6. Apply manual review corrections when needed.
 7. If low-confidence units remain high, build a stricter pruned unit.
-8. Run v2.1 concept discovery on the chosen final unit.
+8. Run concept discovery on the chosen final unit. Use v2.1 `term` discovery for general authors, or v2.2 `trading` discovery for trading authors.
 9. Review `concept-review-template.json` and apply accepted concepts into `profile.concepts`.
 10. Package the resulting unit as Agent Prompt, Skill, and QA artifacts.
 
@@ -389,6 +389,15 @@ node scripts/ajm.js apply-concept-review \
 ```
 
 Pure machine-discovered term clusters default to `review_decision: "review"`; only reviewed `accept` concepts are written into the final profile.
+
+For trading authors, use the v2.2 structural strategy so concept candidates are built from topic, trigger, buy/sell action, risk boundary, time window, and counterexample signals instead of high-frequency term fragments:
+
+```sh
+node scripts/ajm.js discover-concepts \
+  --units dist/weibo-1357064103-pruned/pruned-judgment-units.json \
+  --out dist/weibo-1357064103-pruned/review/concepts \
+  --strategy trading
+```
 
 If no hand-written validation cases exist yet, generate a baseline validation set:
 

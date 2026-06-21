@@ -44,10 +44,10 @@ function usage() {
   return [
     "Usage:",
     "  node scripts/ajm.js distill-weibo --raw <raw-index.json> [--author-id <id>] [--author-handle <handle>] [--out data] [--config configs/weibo.default.json] [--llm-results <results.jsonl>] [--unit-prefix llm_unit] [--validation-cases <cases.json>] [--validation-id <id>]",
-    "  node scripts/ajm.js build-weibo-author-unit --raw <raw-index.json> --out <author-unit-dir> [--author-id <id>] [--author-handle <handle>] [--config configs/weibo.default.json] [--suggest-config yes] [--llm-results <results.jsonl>] [--validation-cases <cases.json>] [--samples-per-domain 3] [--min-posts 50] [--min-judgment-units 50] [--allow-package-on-fail true]",
+    "  node scripts/ajm.js build-weibo-author-unit --raw <raw-index.json> --out <author-unit-dir> [--author-id <id>] [--author-handle <handle>] [--config configs/weibo.default.json] [--suggest-config yes] [--llm-results <results.jsonl>] [--validation-cases <cases.json>] [--samples-per-domain 3] [--min-posts 50] [--min-judgment-units 50] [--discover-concepts true] [--concept-discovery-strategy term|trading] [--allow-package-on-fail true]",
     "  node scripts/ajm.js suggest-weibo-config --raw <raw-index.json> [--author-id <id>] [--author-handle <handle>] [--out <config.json>] [--max-domains 6]",
     "  node scripts/ajm.js package-author --profile <author-judgment-profile.json> --units <judgment-units.json> --out <bundle-dir> [--config configs/weibo.default.json]",
-    "  node scripts/ajm.js discover-concepts --units <judgment-units.json> --out <concept-review-dir> [--min-evidence-units 3] [--max-candidates 30]",
+    "  node scripts/ajm.js discover-concepts --units <judgment-units.json> --out <concept-review-dir> [--min-evidence-units 3] [--max-candidates 30] [--strategy term|trading]",
     "  node scripts/ajm.js apply-concept-review --review <concept-review-template.json> --profile <author-judgment-profile.json> [--out <profile.json>] [--review-id <id>]",
     "  node scripts/ajm.js review-pack --posts <posts.json> --units <judgment-units.json> --evidence-maps <evidence-maps.json> --profile <author-judgment-profile.json> --out <review-dir> [--samples-per-domain 3]",
     "  node scripts/ajm.js quality-gate --posts <posts.json> --units <judgment-units.json> --evidence-maps <evidence-maps.json> --profile <author-judgment-profile.json> [--out <quality-gate.json>] [--min-posts 50] [--min-judgment-units 50]",
@@ -141,6 +141,7 @@ function main() {
       discoverConcepts: args.discoverConcepts === "yes" || args.discoverConcepts === "true",
       minConceptEvidenceUnits: args.minConceptEvidenceUnits,
       maxConceptCandidates: args.maxConceptCandidates,
+      conceptDiscoveryStrategy: args.conceptDiscoveryStrategy,
       conceptReviewId: args.conceptReviewId,
       allowPackageOnFail: args.allowPackageOnFail
     });
@@ -188,7 +189,8 @@ function main() {
       unitsPath: path.resolve(args.units),
       outDir: path.resolve(args.out),
       minEvidenceUnits: args.minEvidenceUnits,
-      maxCandidates: args.maxCandidates
+      maxCandidates: args.maxCandidates,
+      strategy: args.strategy
     });
     console.log(JSON.stringify(result, null, 2));
     return;

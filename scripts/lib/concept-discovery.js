@@ -209,14 +209,106 @@ function dedupeCandidates(candidates) {
   );
 }
 
-function discoverConceptCandidates({ units, minEvidenceUnits = 3, maxCandidates = 30 } = {}) {
+const tradingDomains = new Set([
+  "market_regime_mainline",
+  "trend_structure_timing",
+  "risk_position_management",
+  "ai_tech_industry_logic",
+  "trading_psychology_execution",
+  "intraday_market_reading"
+]);
+
+const tradingSignals = {
+  topic: ["主线", "非主线", "产业链", "科技", "人工智能", "AI", "算力", "光模块", "光通信", "半导体", "芯片"],
+  action: ["买", "买入", "继续买", "低吸", "追涨", "持有", "持有到", "减仓", "止盈", "止损", "仓位", "底仓"],
+  risk: ["风险", "止损", "仓位", "亏损", "失效", "回撤", "追涨", "加速", "过热"],
+  time: ["回踩", "加速区", "加速", "月底", "7月底", "七月底", "短期", "中期", "趋势", "反弹", "持有到"]
+};
+
+function includesAny(text, terms) {
+  return terms.some((term) => text.includes(term));
+}
+
+function tradingSignalKinds(unit) {
+  const text = excerptText(unit);
+  const object = cleanText(unit.object);
+  const combined = `${object} ${text} ${(unit.trigger_conditions || []).join(" ")} ${(unit.boundary_conditions || []).join(" ")}`;
+  return Object.entries(tradingSignals)
+    .filter(([, terms]) => includesAny(combined, terms))
+    .map(([kind]) => kind);
+}
+
+function isTradingStructuralUnit(unit) {
+  const kinds = tradingSignalKinds(unit);
+  return tradingDomains.has(unit.domain) || kinds.length >= 2;
+}
+
+function topTradingAliases(units) {
+  const aliases = [];
+  for (const terms of Object.values(tradingSignals)) {
+    for (const term of terms) {
+      if (units.some((unit) => `${cleanText(unit.object)} ${excerptText(unit)}`.includes(term))) aliases.push(term);
+    }
+  }
+  return unique(aliases).slice(0, 12);
+}
+
+function buildTradingStructureCandidate(units, options = {}) {
+  const tradingUnits = (units || []).filter(isTradingStructuralUnit);
+  if (tradingUnits.length < Number(options.minEvidenceUnits || 3)) return null;
+
+  const aliases = topTradingAliases(tradingUnits);
+  const domains = topValues(tradingUnits, (unit) => unit.domain, 6);
+  const candidate = {
+    id: "trading_mainline_timing_risk",
+    name: "主线-时机-风控交易框架",
+    discovery_source: "trading_structure",
+    aliases: unique(["主线", "低吸", "追涨", "持有", "仓位", "止损", ...aliases]).slice(0, 12),
+    domains,
+    trigger_conditions: unique([
+      ...tradingUnits.flatMap((unit) => unit.trigger_conditions || []),
+      "问题同时询问主题是否仍是主线、还能不能买/持有、交易时间窗口或标的处理。"
+    ]).slice(0, 10),
+    required_variables: unique([
+      "mainline_clarity",
+      "trend_direction",
+      "entry_timing",
+      "position_size",
+      "stop_loss",
+      "holding_period",
+      "chase_risk",
+      ...tradingUnits.flatMap((unit) => unit.variables || [])
+    ]).slice(0, 14),
+    boundary_conditions: unique([
+      ...tradingUnits.flatMap((unit) => unit.boundary_conditions || []),
+      "不能替代实时行情、估值、个股基本面和个人交易计划。",
+      "处在加速区或情绪过热时，必须先提示追涨风险。",
+      "未明确仓位、止损和时间窗口时，不应给确定性买卖结论。"
+    ]).slice(0, 10),
+    counterexamples: unique([
+      ...tradingUnits.flatMap((unit) => unit.counterexamples || []),
+      "只出现主线、低吸、追涨等词，但没有主题、趋势、动作和风险边界同时出现时不适用。",
+      "没有止损计划或趋势已经失效时，不能套用持有结论。"
+    ]).slice(0, 10),
+    time_scope: topValues(tradingUnits, (unit) => unit.time_scope, 1)[0] || dateRange(tradingUnits),
+    evidence_unit_ids: tradingUnits.map((unit) => unit.unit_id).slice(0, 36)
+  };
+  candidate.quality = qualityFor(candidate, options);
+  candidate.review_decision = "review";
+  return candidate;
+}
+
+function discoverConceptCandidates({ units, minEvidenceUnits = 3, maxCandidates = 30, strategy = "term" } = {}) {
   const options = { minEvidenceUnits };
-  const candidates = dedupeCandidates(buildGroups(units).map((group) => buildConceptCandidate(group, options))).slice(0, maxCandidates);
+  const structuralCandidates = strategy === "trading" ? [buildTradingStructureCandidate(units, options)].filter(Boolean) : [];
+  const termCandidates = strategy === "trading" ? [] : buildGroups(units).map((group) => buildConceptCandidate(group, options));
+  const candidates = dedupeCandidates([...structuralCandidates, ...termCandidates]).slice(0, maxCandidates);
   return {
-    version: "0.2.1",
+    version: strategy === "trading" ? "0.2.2" : "0.2.1",
     generated_at: new Date().toISOString(),
     quality_gate: {
       min_evidence_units: Number(minEvidenceUnits),
+      strategy,
       pass: candidates.filter((candidate) => candidate.quality.status === "pass").length,
       fail: candidates.filter((candidate) => candidate.quality.status !== "pass").length
     },
@@ -224,9 +316,9 @@ function discoverConceptCandidates({ units, minEvidenceUnits = 3, maxCandidates 
   };
 }
 
-function reviewTemplateFor(candidates) {
+function reviewTemplateFor(candidates, version = "0.2.1") {
   return {
-    version: "0.2.1",
+    version,
     instructions: [
       "Review each concept. Keep review_decision=accept to write it into profile.concepts.",
       "Set review_decision=reject for pseudo-concepts, or edit aliases/triggers/boundaries/counterexamples before applying."
@@ -268,13 +360,13 @@ function reviewMarkdownFor(candidates) {
   return ["# Concept Review", "", "Edit `concept-review-template.json` for final decisions.", "", ...rows].join("\n");
 }
 
-function exportConceptReviewPack({ candidates, outDir }) {
+function exportConceptReviewPack({ candidates, outDir, version = "0.2.1" }) {
   const resolvedOutDir = path.resolve(outDir);
   const candidatesPath = path.join(resolvedOutDir, "concept-candidates.json");
   const reviewTemplatePath = path.join(resolvedOutDir, "concept-review-template.json");
   const reviewMarkdownPath = path.join(resolvedOutDir, "concept-review.md");
-  writeJson(candidatesPath, { version: "0.2.1", candidates });
-  writeJson(reviewTemplatePath, reviewTemplateFor(candidates));
+  writeJson(candidatesPath, { version, candidates });
+  writeJson(reviewTemplatePath, reviewTemplateFor(candidates, version));
   writeFile(reviewMarkdownPath, reviewMarkdownFor(candidates));
   return {
     outDir: resolvedOutDir,
@@ -343,11 +435,13 @@ function discoverConceptCandidatesFromFiles(options) {
   const result = discoverConceptCandidates({
     units,
     minEvidenceUnits: options.minEvidenceUnits,
-    maxCandidates: options.maxCandidates
+    maxCandidates: options.maxCandidates,
+    strategy: options.strategy
   });
   const exported = exportConceptReviewPack({
     candidates: result.candidates,
-    outDir: options.outDir
+    outDir: options.outDir,
+    version: result.version
   });
   return {
     ...result,

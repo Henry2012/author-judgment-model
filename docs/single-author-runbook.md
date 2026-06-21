@@ -235,6 +235,17 @@ node scripts/ajm.js discover-concepts \
   --max-candidates 30
 ```
 
+For trading authors, use v2.2 structural concept discovery:
+
+```sh
+node scripts/ajm.js discover-concepts \
+  --units "$STRICT_DIR/pruned-judgment-units.json" \
+  --out "$STRICT_DIR/review/concepts" \
+  --min-evidence-units 3 \
+  --max-candidates 30 \
+  --strategy trading
+```
+
 Expected outputs:
 
 - `$STRICT_DIR/review/concepts/concept-candidates.json`
