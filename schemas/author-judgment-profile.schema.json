@@ -11,6 +11,25 @@
     "author_handle": { "type": "string" },
     "coverage_summary": { "type": "object" },
     "domain_map": { "type": "object" },
+    "concepts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "aliases", "domains"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "aliases": { "type": "array", "items": { "type": "string" } },
+          "domains": { "type": "array", "items": { "type": "string" } },
+          "trigger_conditions": { "type": "array", "items": { "type": "string" } },
+          "required_variables": { "type": "array", "items": { "type": "string" } },
+          "boundary_conditions": { "type": "array", "items": { "type": "string" } },
+          "counterexamples": { "type": "array", "items": { "type": "string" } },
+          "time_scope": { "type": "string" },
+          "evidence_unit_ids": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
     "mental_models": { "type": "array" },
     "decision_heuristics": { "type": "array" },
     "anti_patterns": { "type": "array" },

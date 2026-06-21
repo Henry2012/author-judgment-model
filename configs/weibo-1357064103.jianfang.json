@@ -1,6 +1,49 @@
 {
   "version": "0.1.0",
   "platform": "weibo",
+  "concepts": [
+    {
+      "id": "optical_ai_chain",
+      "name": "光通信与人工智能算力链",
+      "aliases": [
+        "光",
+        "光板块",
+        "光模块",
+        "光通信",
+        "CPO",
+        "易中天"
+      ],
+      "domains": [
+        "ai_tech_industry_logic",
+        "trend_structure_timing",
+        "risk_position_management"
+      ],
+      "trigger_conditions": [
+        "询问光通信链、光模块、光板块或易中天相关标的",
+        "询问还能不能买、继续买、追涨、低吸、持有或持有到某个日期",
+        "问题同时涉及产业主线和交易时机"
+      ],
+      "required_variables": [
+        "industry_demand",
+        "technology_mainline",
+        "trend_direction",
+        "acceleration_phase",
+        "entry_timing",
+        "position_size",
+        "stop_loss"
+      ],
+      "boundary_conditions": [
+        "不能替代实时行情、估值、个股基本面和交易计划",
+        "不能直接给出买入、卖出或持有到具体日期的确定性指令",
+        "如果短期处在加速区或情绪过热，应先提示追涨风险"
+      ],
+      "counterexamples": [
+        "只问光学物理、照明或摄影时不应套用该概念",
+        "没有主线逻辑和趋势证据时不能仅因名称相关而给高置信答案"
+      ],
+      "time_scope": "主要适用于当前语料覆盖期内作者围绕人工智能算力链、光通信和主线轮动的判断表达。"
+    }
+  ],
   "domains": {
     "market_regime_mainline": {
       "name": "市场状态与主线方向",

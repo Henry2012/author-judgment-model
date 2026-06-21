@@ -31,6 +31,29 @@ Acceptance:
 
 - Test command exits `0`.
 
+## 0.1. AJM v2 Semantic Distillation Gate
+
+The final package must preserve semantic concepts, not just keyword/domain matches.
+
+Required extraction targets:
+
+- judgment variables
+- trigger conditions
+- boundary conditions
+- counterexamples
+- time applicability
+- confidence reasons
+- misuse risks
+
+Acceptance:
+
+- LLM batch prompts include `trigger_conditions`, `boundary_conditions`, `counterexamples`, and `time_scope`.
+- Imported judgment units preserve these fields when model extraction provides them.
+- If `CONFIG_PATH` defines `concepts`, the generated profile contains `profile.concepts`.
+- A concept must include aliases, linked domains, trigger conditions, boundary conditions, counterexamples, time scope, and evidence unit ids when evidence exists.
+- QA answers for concept questions must expose `matched_concept`, `trigger_conditions`, and `boundary_conditions`.
+- The browser package must classify concept-alias questions through the same concept layer as the CLI answer engine.
+
 ## 1. Build First-Pass Author Unit
 
 ```sh

@@ -85,6 +85,26 @@ function validateArtifacts({ posts, units, evidenceMaps, profile }) {
     }
   }
 
+  for (const concept of profile?.concepts || []) {
+    if (!hasText(concept.id)) errors.push("concept missing id");
+    if (!hasText(concept.name)) errors.push(`concept ${concept.id || "unknown"} missing name`);
+    if (!Array.isArray(concept.aliases) || concept.aliases.length === 0) {
+      warnings.push(`concept ${concept.id || "unknown"} has no aliases`);
+    }
+    if (!Array.isArray(concept.domains) || concept.domains.length === 0) {
+      warnings.push(`concept ${concept.id || "unknown"} has no domains`);
+    }
+    if (!Array.isArray(concept.trigger_conditions) || concept.trigger_conditions.length === 0) {
+      warnings.push(`concept ${concept.id || "unknown"} has no trigger conditions`);
+    }
+    if (!Array.isArray(concept.boundary_conditions) || concept.boundary_conditions.length === 0) {
+      warnings.push(`concept ${concept.id || "unknown"} has no boundary conditions`);
+    }
+    for (const unitId of concept.evidence_unit_ids || []) {
+      if (!unitIds.has(unitId)) errors.push(`concept ${concept.id} references missing unit ${unitId}`);
+    }
+  }
+
   if (!Array.isArray(profile?.decision_heuristics) || profile.decision_heuristics.length === 0) {
     errors.push("profile has no decision heuristics");
   }
@@ -108,6 +128,7 @@ function validateArtifacts({ posts, units, evidenceMaps, profile }) {
       posts: posts.length,
       judgment_units: units.length,
       evidence_maps: evidenceMaps.length,
+      concepts: profile?.concepts?.length || 0,
       mental_models: profile?.mental_models?.length || 0,
       decision_heuristics: profile?.decision_heuristics?.length || 0,
       anti_patterns: profile?.anti_patterns?.length || 0

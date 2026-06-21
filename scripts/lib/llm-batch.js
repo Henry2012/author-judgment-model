@@ -69,6 +69,14 @@ function createExtractionPrompt(config) {
     "      \"causal_chain\": [\"cause\", \"mechanism\", \"effect\"],",
     "      \"decision_rule\": \"if applicable\",",
     "      \"anti_patterns\": [\"rejected reasoning/action pattern\"],",
+    "      \"concept_ids\": [\"stable semantic concept ids if configured or inferable\"],",
+    "      \"trigger_conditions\": [\"conditions under which this judgment should be applied\"],",
+    "      \"boundary_conditions\": [\"conditions where this judgment should be refused, downgraded, or externally verified\"],",
+    "      \"counterexamples\": [\"cases that look similar but should not use this judgment\"],",
+    "      \"time_scope\": \"when this judgment appears applicable in the corpus\",",
+    "      \"confidence_reason\": \"why confidence is low, medium, or high\",",
+    "      \"applicability\": \"question types/scenarios this unit can answer\",",
+    "      \"misuse_risks\": [\"ways this unit could be over-applied\"],",
     "      \"confidence\": \"low|medium|high\",",
     "      \"evidence_strength\": \"weak|indirect|direct\",",
     "      \"evidence_excerpt\": \"verbatim short excerpt from the post\"",
@@ -81,6 +89,8 @@ function createExtractionPrompt(config) {
     "",
     "Quality gates:",
     "- Do not summarize personality or tone.",
+    "- Extract judgment variables, trigger conditions, boundary conditions, counterexamples, and time applicability explicitly when the post supports them.",
+    "- Treat semantic aliases as concepts only when the post gives enough evidence; never rely on keyword matching alone.",
     "- Prefer low confidence when the post is ambiguous.",
     "- Preserve honest boundaries; unsupported inference should produce no unit.",
     "- Every unit must cite source_post_id from input."
@@ -124,6 +134,7 @@ function exportExtractionBatches(options) {
 }
 
 function normalizeImportedUnit(unit, sourcePost, unitId) {
+  const asArray = (value) => (Array.isArray(value) ? value : []);
   return {
     unit_id: unit.unit_id || unitId,
     source_post_id: unit.source_post_id,
@@ -136,6 +147,14 @@ function normalizeImportedUnit(unit, sourcePost, unitId) {
     causal_chain: Array.isArray(unit.causal_chain) ? unit.causal_chain : [],
     decision_rule: unit.decision_rule || "",
     anti_patterns: Array.isArray(unit.anti_patterns) ? unit.anti_patterns : [],
+    concept_ids: asArray(unit.concept_ids),
+    trigger_conditions: asArray(unit.trigger_conditions),
+    boundary_conditions: asArray(unit.boundary_conditions),
+    counterexamples: asArray(unit.counterexamples),
+    time_scope: unit.time_scope || "",
+    confidence_reason: unit.confidence_reason || "",
+    applicability: unit.applicability || "",
+    misuse_risks: asArray(unit.misuse_risks),
     confidence: ["low", "medium", "high"].includes(unit.confidence) ? unit.confidence : "low",
     evidence_strength: ["weak", "indirect", "direct"].includes(unit.evidence_strength) ? unit.evidence_strength : "weak",
     evidence_excerpt: unit.evidence_excerpt || "",

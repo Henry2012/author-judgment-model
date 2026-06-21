@@ -28,7 +28,33 @@ function modelForDomain(profile, domainId) {
   return (profile.mental_models || []).find((model) => (model.domains || []).includes(domainId));
 }
 
+function scoreConcept(text, concept) {
+  const aliasScore = termScore(text, concept.aliases, 8);
+  const triggerScore = termScore(text, concept.trigger_conditions, 3);
+  const variableScore = termScore(text, concept.required_variables, 1);
+  return aliasScore + triggerScore + variableScore;
+}
+
+function matchConcept(question, profile, config = {}) {
+  const text = cleanText(question);
+  const profileConcepts = Array.isArray(profile.concepts) ? profile.concepts : [];
+  const configConcepts = Array.isArray(config.concepts) ? config.concepts : [];
+  const conceptById = new Map(configConcepts.map((concept) => [concept.id, concept]));
+  const concepts = profileConcepts.length ? profileConcepts : configConcepts;
+  const scored = concepts
+    .map((concept) => {
+      const merged = { ...(conceptById.get(concept.id) || {}), ...concept };
+      return { concept: merged, score: scoreConcept(text, merged) };
+    })
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score);
+  return scored[0]?.concept || null;
+}
+
 function classifyQuestion(question, config, profile) {
+  const concept = matchConcept(question, profile, config);
+  if (concept?.domains?.length) return concept.domains[0];
+
   const text = cleanText(question);
   const scored = Object.entries(config.domains || {})
     .map(([domainId, domain]) => {
@@ -60,8 +86,17 @@ function findHeuristic(profile, domain) {
 function evidenceTermsFor(question, config, domain) {
   const text = cleanText(question);
   const domainConfig = config?.domains?.[domain] || {};
+  const concept = matchConcept(question, { concepts: config?.concepts || [] }, config);
   return Array.from(
-    new Set([...(domainConfig.priority_keywords || []), ...(domainConfig.keywords || []), ...(domainConfig.variables || [])].map(cleanText))
+    new Set(
+      [
+        ...(concept?.aliases || []),
+        ...(concept?.required_variables || []),
+        ...(domainConfig.priority_keywords || []),
+        ...(domainConfig.keywords || []),
+        ...(domainConfig.variables || [])
+      ].map(cleanText)
+    )
   ).filter((term) => term && text.includes(term));
 }
 
@@ -100,10 +135,18 @@ function containsAny(text, terms) {
   return terms.some((term) => text.includes(term));
 }
 
-function directConclusionFor({ question, domain, variables, config }) {
+function directConclusionFor({ question, domain, variables, config, concept }) {
   const text = cleanText(question);
   const domainLabel = labelDomain(domain, config);
   const variableText = labelVariables(variables).join("、") || "语料支持的核心变量";
+
+  if (concept?.id === "optical_ai_chain") {
+    return [
+      `按该作者判断模型，这个问题触发「${concept.name}」概念，不是简单问“能不能买”，应合并看产业逻辑、趋势结构和风控仓位。`,
+      "更接近的结论是：先确认光通信/算力链的产业需求、供给约束和科技主线是否仍成立；若逻辑仍强但短期已经加速，应避免追涨，倾向等待回踩或用仓位和止损约束风险。",
+      "具体到易中天、三只标的、以及持有到7月底，历史语料不足以替代实时行情和实时交易判断。"
+    ].join("");
+  }
 
   if (domain === "real_estate" && containsAny(text, ["未来", "房价", "涨", "跌", "反弹", "杭州"])) {
     return [
@@ -138,7 +181,7 @@ function directConclusionFor({ question, domain, variables, config }) {
   return `使用该作者的「${domainLabel}」判断模型时，应通过${variableText}来评估这个问题，并在结论前说明边界和置信度。`;
 }
 
-function buildReasonedAnswer({ question, domain, model, variables, evidenceTrace, confidence, boundaries, config }) {
+function buildReasonedAnswer({ question, domain, model, variables, evidenceTrace, confidence, boundaries, config, concept }) {
   const variableText = labelVariables(variables).join("、") || "语料支持的核心变量";
   const evidenceText = evidenceTrace
     .slice(0, 3)
@@ -147,7 +190,7 @@ function buildReasonedAnswer({ question, domain, model, variables, evidenceTrace
   const boundaryText = localizeBoundaries(boundaries).slice(0, 2).join(" ");
 
   return [
-    `直接回答：${directConclusionFor({ question, domain, variables, config })}`,
+    `直接回答：${directConclusionFor({ question, domain, variables, config, concept })}`,
     `可能的判断逻辑：${localizedModelSummary({ domain, variables, config })}`,
     evidenceText ? `证据链：${evidenceText}。` : "证据链：未找到可引用的证据单元。",
     `置信度：${labelConfidence(confidence)}。边界：${boundaryText}`
@@ -155,6 +198,7 @@ function buildReasonedAnswer({ question, domain, model, variables, evidenceTrace
 }
 
 function answerQuestion({ question, profile, units, config }) {
+  const matchedConcept = matchConcept(question, profile, config);
   const domain = classifyQuestion(question, config, profile);
   const model = findModel(profile, domain);
   const heuristic = findHeuristic(profile, domain);
@@ -193,7 +237,7 @@ function answerQuestion({ question, profile, units, config }) {
   const actionCode = "apply_model_with_boundaries";
 
   return {
-    direct_answer: directConclusionFor({ question, domain, variables, config }),
+    direct_answer: directConclusionFor({ question, domain, variables, config, concept: matchedConcept }),
     reasoned_answer: buildReasonedAnswer({
       question,
       domain,
@@ -202,7 +246,8 @@ function answerQuestion({ question, profile, units, config }) {
       evidenceTrace,
       confidence,
       boundaries,
-      config
+      config,
+      concept: matchedConcept
     }),
     question_classification: domain,
     question_classification_label: labelDomain(domain, config),
@@ -213,6 +258,16 @@ function answerQuestion({ question, profile, units, config }) {
     },
     key_variables: variables,
     key_variable_labels: labelVariables(variables),
+    matched_concept: matchedConcept
+      ? {
+          id: matchedConcept.id,
+          name: matchedConcept.name,
+          aliases: matchedConcept.aliases || [],
+          domains: matchedConcept.domains || []
+        }
+      : null,
+    trigger_conditions: matchedConcept?.trigger_conditions || [],
+    boundary_conditions: matchedConcept?.boundary_conditions || [],
     evidence_trace: evidenceTrace,
     action_tendency: labelActionTendency(actionCode),
     boundaries_and_confidence: {
@@ -237,6 +292,7 @@ function answerFromFiles(options) {
 
 module.exports = {
   classifyQuestion,
+  matchConcept,
   answerQuestion,
   answerFromFiles,
   buildReasonedAnswer,

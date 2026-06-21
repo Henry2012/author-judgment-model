@@ -991,6 +991,49 @@ test("classifies optical sector trading questions as covered for trader configs"
   assert.ok(specificAnswer.evidence_trace.some((item) => item.evidence_excerpt.includes("易中天") || item.evidence_excerpt.includes("光通信")));
 });
 
+test("routes semantic aliases through concept triggers and boundaries", () => {
+  const traderConfig = require("../configs/weibo-1357064103.jianfang.json");
+  const raw = {
+    collectedAt: "2026-06-21T00:00:00.000Z",
+    target: "https://weibo.com/u/1357064103",
+    rows: [
+      {
+        id: "C1",
+        bid: "C1",
+        created_at: "2026-05-30 15:00",
+        text: "易中天今天再次同时创历史新高。很多人认为是抱团，但抱团为何不去抱白酒？还是要看光通信和算力主线的产业逻辑。",
+        url: "https://weibo.com/1357064103/C1"
+      },
+      {
+        id: "C2",
+        bid: "C2",
+        created_at: "2026-05-31 10:00",
+        text: "强逻辑和上升趋势中不要轻易猜顶，但加速区不要追涨，回踩时再看低吸机会。",
+        url: "https://weibo.com/1357064103/C2"
+      }
+    ]
+  };
+  const posts = normalizeWeiboRaw(raw, { authorHandle: "trader-jianfang" });
+  const units = extractJudgmentUnits(posts, traderConfig);
+  const maps = buildEvidenceMaps(units, traderConfig);
+  const profile = buildProfile(posts, units, maps, traderConfig, { authorHandle: "trader-jianfang" }, raw);
+
+  const answer = answerQuestion({
+    question: "易中天还能继续买，并持有到7月底吗？",
+    profile,
+    units,
+    config: traderConfig
+  });
+
+  assert.ok(Array.isArray(profile.concepts));
+  assert.ok(profile.concepts.some((concept) => concept.id === "optical_ai_chain"));
+  assert.equal(answer.matched_concept?.id, "optical_ai_chain");
+  assert.ok(answer.matched_concept.aliases.includes("易中天"));
+  assert.ok(answer.trigger_conditions.some((item) => item.includes("继续买") || item.includes("持有")));
+  assert.ok(answer.boundary_conditions.some((item) => item.includes("实时") || item.includes("日期")));
+  assert.equal(answer.question_classification, "ai_tech_industry_logic");
+});
+
 test("refuses unsupported questions instead of defaulting to the largest domain", () => {
   const posts = normalizeWeiboRaw(sampleRaw(), { authorHandle: "sample" });
   const units = extractJudgmentUnits(posts, config);
@@ -1310,6 +1353,10 @@ test("exports normalized posts into LLM extraction batches", () => {
   assert.equal(requests[1].posts.length, 1);
   assert.ok(requests[0].prompt.includes("Configured domains"));
   assert.ok(requests[0].prompt.includes("source_post_id"));
+  assert.ok(requests[0].prompt.includes("trigger_conditions"));
+  assert.ok(requests[0].prompt.includes("boundary_conditions"));
+  assert.ok(requests[0].prompt.includes("counterexamples"));
+  assert.ok(requests[0].prompt.includes("time_scope"));
 });
 
 test("imports LLM extraction results into canonical judgment units", () => {
@@ -1328,6 +1375,14 @@ test("imports LLM extraction results into canonical judgment units", () => {
           causal_chain: ["old price extrapolation", "ignores current constraints", "bad housing decision"],
           decision_rule: "Evaluate housing by current variables rather than past price gains.",
           anti_patterns: ["old_rule_extrapolation"],
+          concept_ids: ["housing_asset_allocation"],
+          trigger_conditions: ["question asks whether past price gains should guide buying"],
+          boundary_conditions: ["requires current local market verification"],
+          counterexamples: ["do not apply to short-term rental choices"],
+          time_scope: "current corpus period",
+          confidence_reason: "explicit variables and direct evidence",
+          applicability: "housing purchase and allocation questions",
+          misuse_risks: ["using it as a real-time price prediction"],
           confidence: "high",
           evidence_strength: "direct",
           evidence_excerpt: "买房不能只看过去涨不涨，要看城市机会、租售比和退出成本。"
@@ -1343,6 +1398,14 @@ test("imports LLM extraction results into canonical judgment units", () => {
   assert.equal(imported.units[0].unit_id, "llm_unit_000001");
   assert.equal(imported.units[0].source_url, "https://weibo.com/123456/A1");
   assert.deepEqual(imported.units[0].variables, ["city_opportunity", "rent_to_price_ratio", "exit_cost"]);
+  assert.deepEqual(imported.units[0].concept_ids, ["housing_asset_allocation"]);
+  assert.deepEqual(imported.units[0].trigger_conditions, ["question asks whether past price gains should guide buying"]);
+  assert.deepEqual(imported.units[0].boundary_conditions, ["requires current local market verification"]);
+  assert.deepEqual(imported.units[0].counterexamples, ["do not apply to short-term rental choices"]);
+  assert.equal(imported.units[0].time_scope, "current corpus period");
+  assert.equal(imported.units[0].confidence_reason, "explicit variables and direct evidence");
+  assert.equal(imported.units[0].applicability, "housing purchase and allocation questions");
+  assert.deepEqual(imported.units[0].misuse_risks, ["using it as a real-time price prediction"]);
 });
 
 test("parses fenced model JSON responses", () => {

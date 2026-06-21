@@ -270,6 +270,31 @@ function buildProfile(posts, units, evidenceMaps, config, options = {}, raw = {}
     evidence_unit_ids: units.filter((unit) => unit.anti_patterns.includes(id)).slice(0, 8).map((unit) => unit.unit_id)
   }));
 
+  const concepts = (config.concepts || []).map((concept) => {
+    const aliases = Array.isArray(concept.aliases) ? concept.aliases : [];
+    const domains = Array.isArray(concept.domains) ? concept.domains : [];
+    const evidenceUnits = units
+      .filter((unit) => {
+        const text = cleanText([unit.claim, unit.evidence_excerpt, unit.object, ...(unit.variables || [])].join(" "));
+        return domains.includes(unit.domain) && aliases.some((alias) => alias && text.includes(alias));
+      })
+      .sort((a, b) => confidenceRank(b) - confidenceRank(a))
+      .slice(0, 12)
+      .map((unit) => unit.unit_id);
+    return {
+      id: concept.id,
+      name: concept.name || concept.id,
+      aliases,
+      domains,
+      trigger_conditions: concept.trigger_conditions || [],
+      required_variables: concept.required_variables || [],
+      boundary_conditions: concept.boundary_conditions || [],
+      counterexamples: concept.counterexamples || [],
+      time_scope: concept.time_scope || "",
+      evidence_unit_ids: evidenceUnits
+    };
+  });
+
   return {
     profile_id: profileId,
     platform: "weibo",
@@ -278,6 +303,7 @@ function buildProfile(posts, units, evidenceMaps, config, options = {}, raw = {}
     coverage_summary: coverageSummary(posts, raw),
     domain_map: domainMap,
     mental_models: mentalModels,
+    concepts,
     decision_heuristics: decisionHeuristics,
     anti_patterns: antiPatterns,
     honest_boundaries: [

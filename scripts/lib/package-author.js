@@ -45,6 +45,7 @@ function buildAgentPrompt(profile) {
     "",
     "回答要求：",
     "- 先给出直接回答。",
+    "- 如果 profile.concepts 命中问题，先说明匹配到的概念、触发条件、边界条件和反例，再进入判断模型。",
     "- 解释可能使用的判断模型和关键变量，变量名要转成中文。",
     "- 给出证据链，可包含 unit id 或 source post id。",
     "- 说明置信度和边界，置信度必须写成高/中/低。",
@@ -60,6 +61,12 @@ function buildAgentPrompt(profile) {
     "",
     "Mental models:",
     models || "- No mental models available.",
+    "",
+    "Concept layer:",
+    (profile.concepts || [])
+      .slice(0, 8)
+      .map((concept) => `- ${concept.id}: ${concept.name}; aliases=${(concept.aliases || []).join(", ")}; triggers=${(concept.trigger_conditions || []).join(" / ")}; boundaries=${(concept.boundary_conditions || []).join(" / ")}`)
+      .join("\n") || "- No concept layer available.",
     "",
     "Honest boundaries:",
     boundaries || "- Unsupported topics should be answered with low confidence or refused.",
@@ -91,6 +98,7 @@ function buildSkill(profile) {
     "- 不要模仿作者语气或人设。",
     "- 不要声称代表作者本人。",
     "- 主要判断必须落到 profile mental models 或 judgment units。",
+    "- 命中 profile concepts 时，必须显式输出概念、触发条件、边界条件和反例。",
     "- 包含证据 id、置信度和边界。",
     "- 不支持的主题要拒答或降低置信度。",
     "",
@@ -118,7 +126,7 @@ function buildQaDoc(profile) {
     "  --question \"你的问题\"",
     "```",
     "",
-    "期望输出包含 `direct_answer`、`reasoned_answer`、`question_classification`、`likely_judgment_model`、`key_variables`、`evidence_trace` 和 `boundaries_and_confidence`。",
+    "期望输出包含 `direct_answer`、`reasoned_answer`、`question_classification`、`likely_judgment_model`、`key_variables`、`matched_concept`、`trigger_conditions`、`boundary_conditions`、`evidence_trace` 和 `boundaries_and_confidence`。",
     "",
     "面向用户的回答必须全中文。把它视为历史语料上的判断近似，不是实时建议，也不是作者本人的个人表态。"
   ].join("\n");
@@ -139,6 +147,7 @@ function buildManifest(profile, units) {
     coverage: profile.coverage_summary,
     counts: {
       judgment_units: units.length,
+      concepts: (profile.concepts || []).length,
       mental_models: (profile.mental_models || []).length,
       decision_heuristics: (profile.decision_heuristics || []).length,
       anti_patterns: (profile.anti_patterns || []).length

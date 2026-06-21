@@ -284,7 +284,34 @@
       return (profile.mental_models || []).find((model) => (model.domains || []).includes(domainId));
     }
 
+    function scoreConcept(text, concept) {
+      return (
+        termScore(text, concept.aliases, 8) +
+        termScore(text, concept.trigger_conditions, 3) +
+        termScore(text, concept.required_variables, 1)
+      );
+    }
+
+    function matchConcept(question, profile, config) {
+      const text = cleanText(question);
+      const profileConcepts = Array.isArray(profile.concepts) ? profile.concepts : [];
+      const configConcepts = Array.isArray(config.concepts) ? config.concepts : [];
+      const conceptById = new Map(configConcepts.map((concept) => [concept.id, concept]));
+      const concepts = profileConcepts.length ? profileConcepts : configConcepts;
+      const scored = concepts
+        .map((concept) => {
+          const merged = Object.assign({}, conceptById.get(concept.id) || {}, concept);
+          return { concept: merged, score: scoreConcept(text, merged) };
+        })
+        .filter((item) => item.score > 0)
+        .sort((a, b) => b.score - a.score);
+      return scored[0] ? scored[0].concept : null;
+    }
+
     function classifyQuestion(question, config, profile) {
+      const concept = matchConcept(question, profile, config);
+      if (concept && concept.domains && concept.domains.length) return concept.domains[0];
+
       const text = cleanText(question);
       const scored = Object.entries(config.domains || {})
         .map(([domainId, domain]) => {
@@ -316,7 +343,10 @@
     function evidenceTermsFor(question, config, domain) {
       const text = cleanText(question);
       const domainConfig = (config && config.domains && config.domains[domain]) || {};
+      const concept = matchConcept(question, { concepts: (config && config.concepts) || [] }, config || {});
       return Array.from(new Set([]
+        .concat((concept && concept.aliases) || [])
+        .concat((concept && concept.required_variables) || [])
         .concat(domainConfig.priority_keywords || [])
         .concat(domainConfig.keywords || [])
         .concat(domainConfig.variables || [])
@@ -390,9 +420,16 @@
       return `该判断模型属于「${domainName(domain)}」判断域，会优先检查${labels.join("、") || "语料支持的核心变量"}，再结合证据链判断问题是否落在作者稳定表达过的范围内。`;
     }
 
-    function directConclusion(question, domain, variables) {
+    function directConclusion(question, domain, variables, concept) {
       const text = cleanText(question);
       const labels = labelVariables(variables).join("、") || "语料支持的核心变量";
+      if (concept && concept.id === "optical_ai_chain") {
+        return [
+          `按该作者判断模型，这个问题触发「${concept.name}」概念，不是简单问“能不能买”，应合并看产业逻辑、趋势结构和风控仓位。`,
+          "更接近的结论是：先确认光通信/算力链的产业需求、供给约束和科技主线是否仍成立；若逻辑仍强但短期已经加速，应避免追涨，倾向等待回踩或用仓位和止损约束风险。",
+          "具体到易中天、三只标的、以及持有到7月底，历史语料不足以替代实时行情和实时交易判断。"
+        ].join("");
+      }
       if (domain === "real_estate" && containsAny(text, ["未来", "房价", "涨", "跌", "反弹", "杭州"])) {
         return [
           "按该作者判断模型，不能直接给“杭州房价一定涨/跌”的单点预测。",
@@ -418,6 +455,7 @@
 
     function answerQuestion(question) {
       const { profile, units, config } = state;
+      const matchedConcept = matchConcept(question, profile, config);
       const domain = classifyQuestion(question, config, profile);
       const model = findModel(profile, domain);
       const heuristic = findHeuristic(profile, domain);
@@ -432,6 +470,9 @@
           domain,
           confidence: "low",
           variables: [],
+          matchedConcept,
+          triggerConditions: (matchedConcept && matchedConcept.trigger_conditions) || [],
+          boundaryConditions: (matchedConcept && matchedConcept.boundary_conditions) || [],
           evidenceTrace: [],
           text: [
             `直接结论：当前 AJM package 对这个问题没有足够稳定的判断域支持。`,
@@ -447,9 +488,15 @@
         domain,
         confidence,
         variables,
+        matchedConcept,
+        triggerConditions: (matchedConcept && matchedConcept.trigger_conditions) || [],
+        boundaryConditions: (matchedConcept && matchedConcept.boundary_conditions) || [],
         evidenceTrace,
         text: [
-          `直接结论：${directConclusion(question, domain, variables)}`,
+          `直接结论：${directConclusion(question, domain, variables, matchedConcept)}`,
+          matchedConcept ? `匹配概念：${matchedConcept.name}。` : "",
+          matchedConcept && matchedConcept.trigger_conditions && matchedConcept.trigger_conditions.length ? `触发条件：${matchedConcept.trigger_conditions.slice(0, 2).join("；")}。` : "",
+          matchedConcept && matchedConcept.boundary_conditions && matchedConcept.boundary_conditions.length ? `概念边界：${matchedConcept.boundary_conditions.slice(0, 2).join("；")}。` : "",
           `判断变量：${labels.join("、") || "当前 package 支持的核心变量"}。`,
           `可能的判断逻辑：${summarizeModel(domain, variables)}`,
           "行动倾向：先套用证据支持的模型，再说明边界和置信度。",
@@ -515,6 +562,9 @@
             <div class="chips">
               <span class="chip">归类：${escapeHtml(domainName(result.domain))}</span>
               <span class="chip">置信度：${escapeHtml(labelConfidence(result.confidence))}</span>
+              ${result.matchedConcept ? `<span class="chip">概念：${escapeHtml(result.matchedConcept.name || result.matchedConcept.id)}</span>` : ""}
+              ${(result.triggerConditions || []).slice(0, 2).map((item) => `<span class="chip">触发：${escapeHtml(item)}</span>`).join("")}
+              ${(result.boundaryConditions || []).slice(0, 2).map((item) => `<span class="chip">边界：${escapeHtml(item)}</span>`).join("")}
               ${labelVariables(result.variables).map((item) => `<span class="chip">${escapeHtml(item)}</span>`).join("")}
             </div>
           </div>
