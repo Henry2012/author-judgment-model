@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ajm.local/schemas/raw-post.schema.json",
+  "title": "Canonical Raw Post",
+  "type": "object",
+  "required": ["platform", "author_id", "post_id", "created_at", "text", "url", "capture"],
+  "properties": {
+    "platform": { "type": "string", "const": "weibo" },
+    "author_id": { "type": "string", "minLength": 1 },
+    "author_handle": { "type": "string" },
+    "post_id": { "type": "string", "minLength": 1 },
+    "created_at": { "type": "string" },
+    "text": { "type": "string" },
+    "post_type": { "type": "string", "enum": ["original", "repost", "quote", "reply", "unknown"] },
+    "context_text": { "type": "string" },
+    "url": { "type": "string" },
+    "engagement": {
+      "type": "object",
+      "properties": {
+        "likes": { "type": "number" },
+        "comments": { "type": "number" },
+        "reposts": { "type": "number" }
+      }
+    },
+    "capture": {
+      "type": "object",
+      "required": ["captured_at", "method"],
+      "properties": {
+        "captured_at": { "type": "string" },
+        "method": { "type": "string" },
+        "capture_url": { "type": "string" },
+        "coverage_note": { "type": "string" }
+      }
+    }
+  }
+}

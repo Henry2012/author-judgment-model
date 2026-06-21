@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ajm.local/schemas/author-judgment-profile.schema.json",
+  "title": "Author Judgment Profile",
+  "type": "object",
+  "required": ["profile_id", "platform", "author_id", "coverage_summary", "domain_map", "mental_models", "decision_heuristics", "anti_patterns", "honest_boundaries", "evidence_map_refs", "validation_results", "update_history"],
+  "properties": {
+    "profile_id": { "type": "string" },
+    "platform": { "type": "string" },
+    "author_id": { "type": "string" },
+    "author_handle": { "type": "string" },
+    "coverage_summary": { "type": "object" },
+    "domain_map": { "type": "object" },
+    "mental_models": { "type": "array" },
+    "decision_heuristics": { "type": "array" },
+    "anti_patterns": { "type": "array" },
+    "honest_boundaries": { "type": "array" },
+    "evidence_map_refs": { "type": "array" },
+    "validation_results": { "type": "array" },
+    "review_results": { "type": "array" },
+    "update_history": { "type": "array" }
+  }
+}

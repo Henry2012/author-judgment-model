@@ -1,0 +1,171 @@
+{
+  "version": "0.1.0",
+  "platform": "weibo",
+  "domains": {
+    "market_regime_mainline": {
+      "name": "市场状态与主线方向",
+      "keywords": [
+        "大盘",
+        "市场",
+        "主线",
+        "方向",
+        "强势",
+        "弱势",
+        "时代",
+        "逻辑",
+        "风险",
+        "机会"
+      ],
+      "variables": [
+        "market_regime",
+        "mainline_clarity",
+        "index_strength",
+        "sector_leadership",
+        "risk_reward"
+      ],
+      "model_template": "判断市场时先识别强弱状态和主线清晰度，再决定是做大波段、收紧止损，还是等待。"
+    },
+    "trend_structure_timing": {
+      "name": "趋势结构与买卖时机",
+      "keywords": [
+        "趋势",
+        "走势",
+        "形态",
+        "调整",
+        "反弹",
+        "加速",
+        "回踩",
+        "低吸",
+        "追涨",
+        "反包"
+      ],
+      "variables": [
+        "trend_direction",
+        "pullback_quality",
+        "acceleration_phase",
+        "entry_timing",
+        "chase_risk"
+      ],
+      "model_template": "判断交易时机时优先看趋势结构、回踩质量和是否处在加速区，避免追涨，倾向在恐慌或回踩中观察低吸机会。"
+    },
+    "risk_position_management": {
+      "name": "风险控制与仓位管理",
+      "keywords": [
+        "止损",
+        "止盈",
+        "仓位",
+        "底仓",
+        "大亏",
+        "亏损",
+        "风偏",
+        "减仓",
+        "持仓",
+        "波段"
+      ],
+      "variables": [
+        "stop_loss",
+        "position_size",
+        "core_position",
+        "loss_control",
+        "holding_period"
+      ],
+      "model_template": "风控判断强调止损止盈、仓位和底仓纪律：强势主线中不轻易丢底仓，弱势或逻辑不清时收紧风险。"
+    },
+    "ai_tech_industry_logic": {
+      "name": "人工智能科技与产业逻辑",
+      "keywords": [
+        "AI",
+        "人工智能",
+        "科技",
+        "算力",
+        "光通信",
+        "芯片",
+        "半导体",
+        "存储",
+        "固态",
+        "全球",
+        "需求"
+      ],
+      "variables": [
+        "industry_demand",
+        "global_cycle",
+        "supply_constraint",
+        "earnings_growth",
+        "technology_mainline"
+      ],
+      "model_template": "科技产业判断关注全球需求、供给约束和业绩兑现，把人工智能、算力、半导体等方向视为主线候选，而不是单纯题材。"
+    },
+    "trading_psychology_execution": {
+      "name": "交易心理与执行纪律",
+      "keywords": [
+        "心态",
+        "情绪",
+        "认知",
+        "执行力",
+        "怀疑",
+        "埋怨",
+        "贪婪",
+        "恐惧",
+        "开放",
+        "封闭"
+      ],
+      "variables": [
+        "emotional_state",
+        "execution_discipline",
+        "cognitive_openness",
+        "patience",
+        "greed_fear_balance"
+      ],
+      "model_template": "交易心理判断强调认知开放、执行纪律和对贪婪恐惧的控制，反对因短期波动怀疑长期逻辑。"
+    },
+    "intraday_market_reading": {
+      "name": "盘中观察与短线反馈",
+      "keywords": [
+        "今日看盘",
+        "看盘",
+        "上午",
+        "下午",
+        "早盘",
+        "尾盘",
+        "成交量",
+        "补量",
+        "指数",
+        "开盘"
+      ],
+      "variables": [
+        "intraday_strength",
+        "volume_confirmation",
+        "index_feedback",
+        "market_breadth",
+        "short_term_signal"
+      ],
+      "model_template": "盘中判断通过指数强弱、成交量、补量和主线反馈来确认短线状态，但不脱离更大的趋势和逻辑。"
+    }
+  },
+  "anti_pattern_keywords": {
+    "chasing_after_acceleration": [
+      "追涨",
+      "加速",
+      "高潮",
+      "买了就涨"
+    ],
+    "holding_weak_trend": [
+      "下降趋势",
+      "死拿",
+      "不止损",
+      "大亏"
+    ],
+    "logic_drift_after_noise": [
+      "怀疑逻辑",
+      "埋怨",
+      "牢骚",
+      "波动"
+    ],
+    "market_without_mainline": [
+      "主线不清",
+      "弱势市场",
+      "乱做",
+      "到处找黑马"
+    ]
+  }
+}

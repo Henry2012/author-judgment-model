@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ajm.local/schemas/validation-case.schema.json",
+  "title": "Validation Case",
+  "type": "object",
+  "required": ["case_id", "question", "expected_variables", "must_not_include", "pass_criteria"],
+  "properties": {
+    "case_id": { "type": "string" },
+    "question": { "type": "string" },
+    "expected_models": { "type": "array", "items": { "type": "string" } },
+    "expected_variables": { "type": "array", "items": { "type": "string" } },
+    "must_not_include": { "type": "array", "items": { "type": "string" } },
+    "pass_criteria": { "type": "array", "items": { "type": "string" } }
+  }
+}

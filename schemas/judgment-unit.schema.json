@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ajm.local/schemas/judgment-unit.schema.json",
+  "title": "Judgment Unit",
+  "type": "object",
+  "required": ["unit_id", "source_post_id", "domain", "claim", "variables", "confidence", "evidence_strength"],
+  "properties": {
+    "unit_id": { "type": "string" },
+    "source_post_id": { "type": "string" },
+    "created_at": { "type": "string" },
+    "domain": { "type": "string" },
+    "claim": { "type": "string" },
+    "object": { "type": "string" },
+    "stance": { "type": "string" },
+    "variables": { "type": "array", "items": { "type": "string" } },
+    "causal_chain": { "type": "array", "items": { "type": "string" } },
+    "decision_rule": { "type": "string" },
+    "anti_patterns": { "type": "array", "items": { "type": "string" } },
+    "confidence": { "type": "string", "enum": ["low", "medium", "high"] },
+    "evidence_strength": { "type": "string", "enum": ["weak", "indirect", "direct"] },
+    "evidence_excerpt": { "type": "string" },
+    "source_url": { "type": "string" }
+  }
+}

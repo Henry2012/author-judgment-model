@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ajm.local/schemas/evidence-map.schema.json",
+  "title": "Evidence Map",
+  "type": "object",
+  "required": ["domain", "core_judgment", "supporting_units", "conflicting_units", "key_variables", "boundary", "confidence"],
+  "properties": {
+    "domain": { "type": "string" },
+    "core_judgment": { "type": "string" },
+    "supporting_units": { "type": "array", "items": { "type": "string" } },
+    "conflicting_units": { "type": "array", "items": { "type": "string" } },
+    "key_variables": { "type": "array", "items": { "type": "string" } },
+    "boundary": { "type": "array", "items": { "type": "string" } },
+    "confidence": { "type": "string", "enum": ["low", "medium", "high"] }
+  }
+}

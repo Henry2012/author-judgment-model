@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Author AJM 可视化问答</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #202124;
+      --muted: #5f6368;
+      --line: #dadce0;
+      --paper: #ffffff;
+      --band: #f6f8fa;
+      --soft: #eef3fd;
+      --accent: #0b57d0;
+      --accent-strong: #0842a0;
+      --warn: #b3261e;
+      --ok: #137333;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--paper);
+      line-height: 1.55;
+    }
+    header, main > section {
+      padding: 26px max(18px, calc((100vw - 1120px) / 2));
+    }
+    header {
+      border-bottom: 1px solid var(--line);
+      background: var(--band);
+    }
+    h1 { margin: 0 0 8px; font-size: 28px; letter-spacing: 0; }
+    h2 { margin: 0 0 12px; font-size: 20px; letter-spacing: 0; }
+    h3 { margin: 0 0 8px; font-size: 16px; letter-spacing: 0; }
+    p { margin: 0 0 10px; }
+    button, textarea { font: inherit; }
+    textarea {
+      width: 100%;
+      min-height: 128px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      resize: vertical;
+    }
+    button {
+      margin-top: 10px;
+      padding: 10px 16px;
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      color: #fff;
+      background: var(--accent);
+      cursor: pointer;
+    }
+    button:disabled {
+      cursor: wait;
+      opacity: .7;
+    }
+    button:hover:not(:disabled) { background: var(--accent-strong); }
+    code {
+      padding: 1px 4px;
+      border-radius: 4px;
+      background: var(--band);
+    }
+    .muted { color: var(--muted); }
+    .status { color: var(--ok); font-weight: 600; }
+    .warning { color: var(--warn); font-weight: 600; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .stat, .answer, .domain, .evidence-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+    .stat {
+      min-height: 88px;
+      padding: 12px;
+    }
+    .stat strong {
+      display: block;
+      font-size: 22px;
+    }
+    .domain-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .domain {
+      padding: 12px;
+      min-height: 128px;
+    }
+    .domain strong { display: block; margin-bottom: 6px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      max-width: 100%;
+      min-height: 26px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--soft);
+      color: var(--accent-strong);
+      font-size: 13px;
+      overflow-wrap: anywhere;
+    }
+    .answer {
+      margin-top: 12px;
+      padding: 14px;
+      white-space: pre-wrap;
+    }
+    .answer h3 { margin-top: 0; }
+    .answer-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+      gap: 12px;
+      align-items: start;
+    }
+    .evidence-card {
+      padding: 12px;
+      margin-bottom: 8px;
+    }
+    .evidence-card a {
+      color: var(--accent);
+      overflow-wrap: anywhere;
+    }
+    @media (max-width: 900px) {
+      .grid, .domain-grid, .answer-grid { grid-template-columns: 1fr; }
+      h1 { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1 id="page-title">AJM 可视化问答</h1>
+    <p class="muted">读取当前 package 的 <code>author-judgment-profile.json</code>、<code>judgment-units.json</code> 和 <code>config.json</code>，用蒸馏后的判断单元回答问题。</p>
+    <p id="load-status" class="muted">正在加载 AJM package...</p>
+  </header>
+
+  <main>
+    <section>
+      <h2>Package 概况</h2>
+      <div class="grid" id="stats"></div>
+    </section>
+
+    <section>
+      <h2>可用判断域</h2>
+      <div class="domain-grid" id="domains"></div>
+    </section>
+
+    <section>
+      <h2>未来问题模拟器</h2>
+      <p class="muted">输入一个具体问题，页面会先归类问题，再用当前 package 中的 Mindset、变量和证据链模拟回答。它不是实时事实检索，也不代表本人观点。</p>
+      <textarea id="question" placeholder="例如：现在普通人还适合买房吗？要看哪些变量？"></textarea>
+      <button id="ask" type="button" disabled>用 AJM 回答</button>
+      <div id="answer" class="answer">等待 package 加载。</div>
+    </section>
+
+    <section>
+      <h2>本地使用</h2>
+      <p>推荐在项目根目录运行：<code>python3 -m http.server 8000</code>，然后打开 <code>http://localhost:8000/dist/weibo-2611641261-pruned/package/index.html</code>。</p>
+      <p class="muted">不建议直接使用 <code>file://</code> 打开，因为浏览器可能限制本地 JSON 读取。</p>
+    </section>
+  </main>
+
+  <script>
+    const state = {
+      profile: null,
+      units: [],
+      config: null
+    };
+
+    const zhDomainNames = {
+      real_estate: "房产 / 城市 / 资产配置",
+      stock_market: "股市 / 投资 / 估值",
+      employment: "就业 / 教育 / 收入",
+      manufacturing: "汽车 / 制造业 / 价格竞争",
+      macro_policy: "宏观 / 政策 / 人口 / 财政",
+      public_services: "公共服务 / 医疗 / 教育财政",
+      general: "通用问题"
+    };
+
+    const variableLabels = {
+      liquidity: "流动性",
+      rent_to_price_ratio: "租售比",
+      city_opportunity: "城市机会",
+      household_balance_sheet: "家庭资产负债",
+      exit_cost: "退出成本",
+      valuation: "估值",
+      capital_flow: "资金流向",
+      policy_direction: "政策方向",
+      profit_realization: "盈利兑现",
+      job_quality: "岗位质量",
+      family_resources: "家庭资源",
+      industry_supply_demand: "行业供需",
+      work_intensity: "工作强度",
+      pricing_freedom: "定价自由",
+      demand_capacity: "需求容量",
+      margin: "利润率",
+      supply_chain_efficiency: "供应链效率",
+      export_capacity: "出海能力",
+      policy_objective: "政策目标",
+      population_structure: "人口结构",
+      fiscal_constraint: "财政约束",
+      market_mechanism: "市场机制",
+      incentive_alignment: "激励相容",
+      payer: "谁付钱",
+      price_control: "价格管制",
+      fiscal_coverage: "财政覆盖",
+      labor_intensity: "劳动强度",
+      market_regime: "市场状态",
+      mainline_clarity: "主线清晰度",
+      index_strength: "指数强弱",
+      sector_leadership: "板块领涨性",
+      risk_reward: "盈亏比",
+      trend_direction: "趋势方向",
+      pullback_quality: "回踩质量",
+      acceleration_phase: "加速阶段",
+      entry_timing: "入场时机",
+      chase_risk: "追涨风险",
+      stop_loss: "止损纪律",
+      position_size: "仓位大小",
+      core_position: "底仓纪律",
+      loss_control: "亏损控制",
+      holding_period: "持仓周期",
+      industry_demand: "产业需求",
+      global_cycle: "全球周期",
+      supply_constraint: "供给约束",
+      earnings_growth: "业绩增长",
+      technology_mainline: "科技主线",
+      emotional_state: "情绪状态",
+      execution_discipline: "执行纪律",
+      cognitive_openness: "认知开放度",
+      patience: "耐心",
+      greed_fear_balance: "贪婪恐惧平衡",
+      intraday_strength: "盘中强弱",
+      volume_confirmation: "成交量确认",
+      index_feedback: "指数反馈",
+      market_breadth: "市场广度",
+      short_term_signal: "短线信号"
+    };
+
+    const confidenceLabels = {
+      high: "高",
+      medium: "中",
+      low: "低"
+    };
+
+    const answerBox = document.getElementById("answer");
+    const askButton = document.getElementById("ask");
+    const questionInput = document.getElementById("question");
+
+    function cleanText(value) {
+      return String(value || "").replace(/\s+/g, " ").trim();
+    }
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    async function loadJson(path) {
+      const response = await fetch(path, { cache: "no-store" });
+      if (!response.ok) throw new Error(`${path} ${response.status}`);
+      return response.json();
+    }
+
+    function termScore(text, terms, weight = 1) {
+      return (terms || []).reduce((sum, term) => {
+        const value = cleanText(term);
+        return value && text.includes(value) ? sum + weight : sum;
+      }, 0);
+    }
+
+    function modelForDomain(profile, domainId) {
+      return (profile.mental_models || []).find((model) => (model.domains || []).includes(domainId));
+    }
+
+    function classifyQuestion(question, config, profile) {
+      const text = cleanText(question);
+      const scored = Object.entries(config.domains || {})
+        .map(([domainId, domain]) => {
+          const model = modelForDomain(profile, domainId);
+          return {
+            domainId,
+            score:
+              termScore(text, domain.keywords, 3) +
+              termScore(text, domain.variables, 1) +
+              termScore(text, [model && model.name].concat((model && model.variables) || []), 1),
+            profileUnits: (profile.domain_map && profile.domain_map[domainId] && profile.domain_map[domainId].unit_count) || 0
+          };
+        })
+        .filter((item) => item.score > 0)
+        .sort((a, b) => b.score - a.score || b.profileUnits - a.profileUnits);
+
+      return scored[0] ? scored[0].domainId : "general";
+    }
+
+    function findModel(profile, domain) {
+      return (profile.mental_models || []).find((model) => (model.domains || []).includes(domain));
+    }
+
+    function findHeuristic(profile, domain) {
+      return (profile.decision_heuristics || []).find((heuristic) => heuristic.id === `heuristic_${domain}`);
+    }
+
+    function buildEvidenceTrace(model, units) {
+      const unitById = new Map(units.map((unit) => [unit.unit_id, unit]));
+      return ((model && model.evidence_unit_ids) || [])
+        .map((unitId) => unitById.get(unitId))
+        .filter(Boolean)
+        .slice(0, 5);
+    }
+
+    function confidenceFor(profile, domain, trace) {
+      const domainInfo = profile.domain_map && profile.domain_map[domain];
+      if (!domainInfo || !trace.length) return "low";
+      if (domainInfo.unit_count >= 20 && trace.length >= 3) return "high";
+      if (domainInfo.unit_count >= 5) return "medium";
+      return "low";
+    }
+
+    function labelVariables(variables) {
+      return (variables || []).map((item, index) => variableLabels[item] || `变量${index + 1}`);
+    }
+
+    function labelConfidence(confidence) {
+      return confidenceLabels[confidence] || "未知";
+    }
+
+    function localizeBoundary(boundary) {
+      const value = String(boundary || "").trim();
+      if (!value) return "";
+      if (/[\u3400-\u9fff]/u.test(value) && !/[A-Za-z]{3,}/u.test(value)) return value;
+      if (/corpus-backed judgment approximation/i.test(value)) return "这是基于历史语料的判断近似，不能视为作者未来观点。";
+      if (/real-time factual claims/i.test(value)) return "涉及实时事实时，需要先做外部核验，再应用这个判断模型。";
+      if (/supplied Weibo corpus/i.test(value) || /derived from the supplied/i.test(value)) return "该模型只来自已提供的微博语料。";
+      if (/must not imitate/i.test(value) || /do not imitate/i.test(value)) return "不得模仿作者语气、人设、口头禅或表达习惯。";
+      if (/unsupported topics/i.test(value) || /refused or downgraded/i.test(value)) return "语料不支持的主题应拒答或降低置信度。";
+      if (/personal view|personal statement|represent the author/i.test(value)) return "回答不代表作者本人授权或个人表态。";
+      return "仅基于历史语料生成判断近似，不能外推为作者本人观点。";
+    }
+
+    function localizeBoundaries(boundaries) {
+      return Array.from(new Set((boundaries || []).map(localizeBoundary).filter(Boolean)));
+    }
+
+    function domainName(domainId) {
+      const configured = state.config && state.config.domains && state.config.domains[domainId];
+      if (zhDomainNames[domainId]) return zhDomainNames[domainId];
+      if (configured && configured.name && /[\u3400-\u9fff]/u.test(configured.name)) return configured.name;
+      return domainId === "general" ? "通用问题" : "作者自定义判断域";
+    }
+
+    function summarizeModel(domain, variables) {
+      const labels = labelVariables(variables);
+      return `该判断模型属于「${domainName(domain)}」判断域，会优先检查${labels.join("、") || "语料支持的核心变量"}，再结合证据链判断问题是否落在作者稳定表达过的范围内。`;
+    }
+
+    function answerQuestion(question) {
+      const { profile, units, config } = state;
+      const domain = classifyQuestion(question, config, profile);
+      const model = findModel(profile, domain);
+      const heuristic = findHeuristic(profile, domain);
+      const evidenceTrace = buildEvidenceTrace(model, units);
+      const confidence = confidenceFor(profile, domain, evidenceTrace);
+      const variables = (model && model.variables) || (heuristic && heuristic.priority_variables) || [];
+      const boundaries = localizeBoundaries([].concat((model && model.limitations) || [], profile.honest_boundaries || []));
+
+      if (!model) {
+        const profileBoundaries = localizeBoundaries(profile.honest_boundaries || []);
+        return {
+          domain,
+          confidence: "low",
+          variables: [],
+          evidenceTrace: [],
+          text: [
+            `直接结论：当前 AJM package 对这个问题没有足够稳定的判断域支持。`,
+            `问题归类：${domainName(domain)}。`,
+            "处理方式：降低置信度，或要求补充更具体的问题对象、场景和约束。",
+            `边界：${profileBoundaries.slice(0, 2).join(" ")}`
+          ].join("\n\n")
+        };
+      }
+
+      const labels = labelVariables(variables);
+      return {
+        domain,
+        confidence,
+        variables,
+        evidenceTrace,
+        text: [
+          `直接结论：这个问题应先放入「${domainName(domain)}」判断域，不宜直接给单点答案。`,
+          `判断变量：${labels.join("、") || "当前 package 支持的核心变量"}。`,
+          `可能的判断逻辑：${summarizeModel(domain, variables)}`,
+          "行动倾向：先套用证据支持的模型，再说明边界和置信度。",
+          `置信度：${labelConfidence(confidence)}。`,
+          `边界：${boundaries.slice(0, 2).join(" ")}`
+        ].join("\n\n")
+      };
+    }
+
+    function renderStats() {
+      const profile = state.profile;
+      const units = state.units;
+      const domainCount = Object.keys((state.config && state.config.domains) || {}).length;
+      const stats = [
+        ["Profile", profile.profile_id || "weibo-2611641261", "作者判断单元"],
+        ["判断单元", units.length, "pruned package"],
+        ["判断域", domainCount, "config domains"],
+        ["Mental Models", (profile.mental_models || []).length, "可调用模型"]
+      ];
+      document.getElementById("stats").innerHTML = stats.map(([label, value, note]) => `
+        <div class="stat">
+          <span>${escapeHtml(label)}</span>
+          <strong>${escapeHtml(value)}</strong>
+          <span class="muted">${escapeHtml(note)}</span>
+        </div>
+      `).join("");
+    }
+
+    function renderDomains() {
+      const profile = state.profile;
+      const config = state.config;
+      document.getElementById("domains").innerHTML = Object.entries(config.domains || {}).map(([domainId, domain]) => {
+        const model = modelForDomain(profile, domainId);
+        const count = (profile.domain_map && profile.domain_map[domainId] && profile.domain_map[domainId].unit_count) || 0;
+        return `
+          <article class="domain">
+            <strong>${escapeHtml(domainName(domainId))}</strong>
+            <p class="muted">${escapeHtml(domain.model_template || (model && model.name) || "")}</p>
+            <p>证据单元：${escapeHtml(count)}</p>
+            <div class="chips">${labelVariables(domain.variables || []).map((item) => `<span class="chip">${escapeHtml(item)}</span>`).join("")}</div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function renderEvidence(trace) {
+      if (!trace.length) return "<p class=\"muted\">无可展示证据链。</p>";
+      return trace.map((item) => `
+        <article class="evidence-card">
+          <h3>${escapeHtml(item.unit_id)} · ${escapeHtml(item.created_at || "unknown date")}</h3>
+          <p>${escapeHtml(item.evidence_excerpt || item.claim || "")}</p>
+          ${item.source_url ? `<p><a href="${escapeHtml(item.source_url)}" target="_blank" rel="noreferrer">打开来源</a></p>` : ""}
+        </article>
+      `).join("");
+    }
+
+    function renderAnswer(result) {
+      answerBox.innerHTML = `
+        <div class="answer-grid">
+          <div>
+            <h3>模拟回答</h3>
+            <p>${escapeHtml(result.text).replace(/\n/g, "<br>")}</p>
+            <div class="chips">
+              <span class="chip">归类：${escapeHtml(domainName(result.domain))}</span>
+              <span class="chip">置信度：${escapeHtml(labelConfidence(result.confidence))}</span>
+              ${labelVariables(result.variables).map((item) => `<span class="chip">${escapeHtml(item)}</span>`).join("")}
+            </div>
+          </div>
+          <aside>
+            <h3>证据链</h3>
+            ${renderEvidence(result.evidenceTrace)}
+          </aside>
+        </div>
+      `;
+    }
+
+    async function init() {
+      try {
+        const [profile, units, config] = await Promise.all([
+          loadJson("data/author-judgment-profile.json"),
+          loadJson("data/judgment-units.json"),
+          loadJson("data/config.json")
+        ]);
+        state.profile = profile;
+        state.units = units;
+        state.config = config;
+        document.getElementById("page-title").textContent = `${profile.author_handle || profile.profile_id} AJM 可视化问答`;
+        renderStats();
+        renderDomains();
+        document.getElementById("load-status").className = "status";
+        document.getElementById("load-status").textContent = "AJM package 已加载。";
+        askButton.disabled = false;
+        answerBox.textContent = "等待输入。";
+      } catch (error) {
+        document.getElementById("load-status").className = "warning";
+        document.getElementById("load-status").textContent = "AJM package 加载失败。请用本地 HTTP server 打开本页。";
+        answerBox.textContent = `加载失败：${error.message}\n\n请在项目根目录运行：python3 -m http.server 8000`;
+      }
+    }
+
+    askButton.addEventListener("click", () => {
+      const question = questionInput.value.trim();
+      if (!question) {
+        answerBox.textContent = "请先输入一个具体问题。";
+        return;
+      }
+      renderAnswer(answerQuestion(question));
+    });
+
+    questionInput.addEventListener("keydown", (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+        askButton.click();
+      }
+    });
+
+    init();
+  </script>
+</body>
+</html>
