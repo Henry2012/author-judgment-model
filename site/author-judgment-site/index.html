@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Author Judgment Model</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --text: #17191c;
+      --muted: #667085;
+      --line: #d9dee7;
+      --soft: #f6f8fb;
+      --accent: #0f62d6;
+      --accent-soft: #eaf2ff;
+      --warn: #8a5a00;
+      --surface: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      background: var(--surface);
+    }
+
+    header {
+      border-bottom: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    .wrap {
+      width: min(1180px, calc(100vw - 40px));
+      margin: 0 auto;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      min-height: 76px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 6px 0 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .button {
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text);
+      padding: 8px 12px;
+      font-size: 14px;
+      text-decoration: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+    }
+
+    .button:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      min-height: calc(100vh - 77px);
+    }
+
+    aside {
+      border-right: 1px solid var(--line);
+      background: var(--soft);
+      padding: 22px;
+    }
+
+    .author-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .author-button {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text);
+      text-align: left;
+      padding: 14px;
+      cursor: pointer;
+    }
+
+    .author-button[aria-selected="true"] {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .author-button strong {
+      display: block;
+      font-size: 16px;
+      margin-bottom: 6px;
+    }
+
+    .author-button span {
+      display: block;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 13px;
+    }
+
+    .panel {
+      min-width: 0;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .meta {
+      border-bottom: 1px solid var(--line);
+      padding: 18px 22px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 14px;
+      align-items: center;
+    }
+
+    .meta h2 {
+      margin: 0 0 6px;
+      font-size: 21px;
+      letter-spacing: 0;
+    }
+
+    .meta p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .stats {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .chip {
+      border-radius: 999px;
+      background: #eef3f8;
+      color: #28435f;
+      padding: 6px 10px;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .frame-wrap {
+      min-height: 0;
+      background: #f9fafc;
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+      min-height: calc(100vh - 160px);
+      border: 0;
+      background: white;
+      display: block;
+    }
+
+    .notice {
+      color: var(--warn);
+    }
+
+    @media (max-width: 860px) {
+      .topbar,
+      .meta {
+        grid-template-columns: 1fr;
+        display: grid;
+        align-items: start;
+      }
+
+      .actions,
+      .stats {
+        justify-content: flex-start;
+      }
+
+      main {
+        grid-template-columns: 1fr;
+      }
+
+      aside {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .author-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      iframe {
+        min-height: 720px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .wrap {
+        width: min(100vw - 24px, 1180px);
+      }
+
+      .author-list {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        font-size: 21px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap topbar">
+      <div>
+        <h1>Author Judgment Model</h1>
+        <p class="subtitle">在一个站点中切换不同作者的判断力蒸馏 package。</p>
+      </div>
+      <div class="actions">
+        <a class="button" id="openCurrent" target="_blank" rel="noreferrer">打开当前作者页面</a>
+        <a class="button primary" href="../../README.md" target="_blank" rel="noreferrer">查看项目说明</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <aside>
+      <div class="author-list" id="authorList"></div>
+    </aside>
+
+    <section class="panel">
+      <div class="meta">
+        <div>
+          <h2 id="authorTitle">加载中</h2>
+          <p id="authorDescription">正在读取作者 package。</p>
+        </div>
+        <div class="stats" id="stats"></div>
+      </div>
+      <div class="frame-wrap">
+        <iframe id="authorFrame" title="Author package"></iframe>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const authors = [
+      {
+        id: "sanshu",
+        name: "三叔",
+        handle: "sanshu",
+        packagePath: "../weibo-2611641261-pruned/package/",
+        note: "房产、城市、资产配置判断模型"
+      },
+      {
+        id: "jianfang",
+        name: "交易者简放",
+        handle: "trader-jianfang",
+        packagePath: "../weibo-1357064103-pruned/package/",
+        note: "市场主线、趋势结构、风控与科技产业判断模型"
+      }
+    ];
+
+    const state = {
+      selected: authors[0],
+      manifests: new Map()
+    };
+
+    const authorList = document.getElementById("authorList");
+    const authorTitle = document.getElementById("authorTitle");
+    const authorDescription = document.getElementById("authorDescription");
+    const stats = document.getElementById("stats");
+    const authorFrame = document.getElementById("authorFrame");
+    const openCurrent = document.getElementById("openCurrent");
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function formatDate(value) {
+      if (!value) return "未知";
+      return String(value).replace("T", " ").replace("+08:00", "");
+    }
+
+    function localizeLimitation(value) {
+      const text = String(value || "").trim();
+      if (!text) return "";
+      if (/Coverage depends on the supplied Weibo raw corpus/i.test(text)) {
+        return "覆盖范围取决于当前提供的微博原始语料。";
+      }
+      return text;
+    }
+
+    async function loadManifest(author) {
+      if (state.manifests.has(author.id)) return state.manifests.get(author.id);
+      const response = await fetch(`${author.packagePath}manifest.json`, { cache: "no-store" });
+      if (!response.ok) throw new Error(`${author.name} manifest 加载失败`);
+      const manifest = await response.json();
+      state.manifests.set(author.id, manifest);
+      return manifest;
+    }
+
+    function renderAuthorList() {
+      authorList.innerHTML = authors.map((author) => `
+        <button class="author-button" type="button" data-author="${escapeHtml(author.id)}" aria-selected="${author.id === state.selected.id}">
+          <strong>${escapeHtml(author.name)}</strong>
+          <span>${escapeHtml(author.note)}</span>
+        </button>
+      `).join("");
+
+      authorList.querySelectorAll("button").forEach((button) => {
+        button.addEventListener("click", () => {
+          const next = authors.find((author) => author.id === button.dataset.author);
+          if (next) selectAuthor(next);
+        });
+      });
+    }
+
+    function renderMeta(author, manifest) {
+      const coverage = manifest.coverage || {};
+      const counts = manifest.counts || {};
+      authorTitle.textContent = author.name;
+      authorDescription.innerHTML = [
+        `${escapeHtml(author.note)}。`,
+        `覆盖：${escapeHtml(formatDate(coverage.first_created_at))} 至 ${escapeHtml(formatDate(coverage.last_created_at))}。`,
+        coverage.limitation ? `<span class="notice">${escapeHtml(localizeLimitation(coverage.limitation))}</span>` : ""
+      ].filter(Boolean).join(" ");
+
+      stats.innerHTML = [
+        ["微博", coverage.rows || 0],
+        ["判断单元", counts.judgment_units || 0],
+        ["模型", counts.mental_models || 0],
+        ["作者", manifest.author_handle || author.handle]
+      ].map(([label, value]) => `<span class="chip">${escapeHtml(label)}：${escapeHtml(value)}</span>`).join("");
+    }
+
+    async function selectAuthor(author) {
+      state.selected = author;
+      renderAuthorList();
+      authorTitle.textContent = author.name;
+      authorDescription.textContent = "正在读取作者 package。";
+      stats.innerHTML = "";
+      authorFrame.removeAttribute("src");
+      openCurrent.href = `${author.packagePath}index.html`;
+
+      try {
+        const manifest = await loadManifest(author);
+        renderMeta(author, manifest);
+        authorFrame.src = `${author.packagePath}index.html`;
+      } catch (error) {
+        authorDescription.innerHTML = `<span class="notice">${escapeHtml(error.message || error)}</span>`;
+      }
+    }
+
+    renderAuthorList();
+    selectAuthor(state.selected);
+  </script>
+</body>
+</html>

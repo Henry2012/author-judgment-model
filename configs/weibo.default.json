@@ -3,40 +3,40 @@
   "platform": "weibo",
   "domains": {
     "real_estate": {
-      "name": "Real estate and city choice",
+      "name": "房产 / 城市 / 资产配置",
       "keywords": ["房", "楼", "地产", "城市", "租售比", "地铁", "买房", "租房"],
       "variables": ["liquidity", "rent_to_price_ratio", "city_opportunity", "household_balance_sheet", "exit_cost"],
-      "model_template": "Judges housing as an asset and life-efficiency tool, with emphasis on liquidity, city opportunity, household balance sheet, and exit cost."
+      "model_template": "把住房视为资产和生活效率工具，重点检查流动性、城市机会、家庭资产负债、租售比和退出成本。"
     },
     "stock_market": {
-      "name": "Stock market and investing",
+      "name": "股市 / 投资 / 估值",
       "keywords": ["股", "估值", "持股", "波段", "资金", "市场", "板块", "港股", "美股", "A股", "大A"],
       "variables": ["valuation", "capital_flow", "policy_direction", "profit_realization", "exit_cost"],
-      "model_template": "Judges investments as tools rather than identities, with emphasis on valuation, rule changes, capital flow, and exit discipline."
+      "model_template": "把投资视为工具而不是身份，重点检查估值、规则变化、资金流向、盈利兑现和退出纪律。"
     },
     "employment": {
-      "name": "Employment and education",
+      "name": "就业 / 教育 / 收入",
       "keywords": ["就业", "工作", "收入", "毕业", "大学", "专业", "年轻", "岗位", "学历", "高考"],
       "variables": ["city_opportunity", "job_quality", "family_resources", "industry_supply_demand", "work_intensity"],
-      "model_template": "Judges education and employment through city opportunity, job quality, family resources, and real supply-demand constraints."
+      "model_template": "通过城市机会、岗位质量、家庭资源、行业供需和工作强度判断教育与就业选择。"
     },
     "manufacturing": {
-      "name": "Manufacturing and price competition",
+      "name": "汽车 / 制造业 / 价格竞争",
       "keywords": ["车", "汽车", "电车", "油车", "销量", "价格", "利润", "制造", "光伏", "出海"],
       "variables": ["pricing_freedom", "demand_capacity", "margin", "supply_chain_efficiency", "export_capacity"],
-      "model_template": "Judges manufacturing by whether competition allows efficient players to win through price, scale, supply chain, and export capacity."
+      "model_template": "通过价格竞争、规模效率、供应链能力、利润率和出海能力判断制造业竞争格局。"
     },
     "macro_policy": {
-      "name": "Macro policy and public finance",
+      "name": "宏观 / 政策 / 人口 / 财政",
       "keywords": ["政策", "财政", "人口", "消费", "公平", "效率", "竞争", "出清", "出生", "转移支付"],
       "variables": ["policy_objective", "population_structure", "fiscal_constraint", "market_mechanism", "incentive_alignment"],
-      "model_template": "Judges macro issues through policy goals, population structure, fiscal constraints, market mechanisms, and incentive alignment."
+      "model_template": "通过政策目标、人口结构、财政约束、市场机制和激励相容判断宏观问题。"
     },
     "public_services": {
-      "name": "Public services",
+      "name": "公共服务 / 医疗 / 教育财政",
       "keywords": ["医院", "医保", "医生", "财政", "学校", "老师", "教育", "职校", "大学", "公共服务"],
       "variables": ["payer", "price_control", "fiscal_coverage", "labor_intensity", "incentive_alignment"],
-      "model_template": "Judges public services by asking who pays, whether prices are controlled, whether fiscal funding covers costs, and how incentives shape behavior."
+      "model_template": "通过谁付钱、价格是否受控、财政是否覆盖成本、劳动强度和激励结构判断公共服务问题。"
     }
   },
   "anti_pattern_keywords": {

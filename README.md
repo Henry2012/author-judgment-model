@@ -4,6 +4,22 @@ Author Judgment Model, abbreviated as AJM, is a framework for distilling an auth
 
 The target is not to clone the author's tone, style, catchphrases, emoji habits, or chat behavior. The target is to extract how the author judges: mental models, decision heuristics, anti-patterns, honest boundaries, evidence maps, and validation mechanisms.
 
+## Local Multi-author Site
+
+After building author packages under `dist/`, use the local multi-author entry at:
+
+```text
+site/author-judgment-site/index.html
+```
+
+For local use, copy or publish that entry to `dist/author-judgment-site/index.html`, then run:
+
+```sh
+python3 -m http.server 8000
+```
+
+Open `http://localhost:8000/dist/author-judgment-site/index.html` to switch between available author packages.
+
 ## 1. Goal
 
 AJM turns a historical feed from Weibo.com, X.com, or similar public platforms into a structured judgment model that can answer new questions with an evidence-bounded approximation of the author's reasoning logic.
