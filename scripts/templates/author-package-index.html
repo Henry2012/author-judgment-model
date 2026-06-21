@@ -132,6 +132,16 @@
       white-space: pre-wrap;
     }
     .answer h3 { margin-top: 0; }
+    .context-label {
+      display: block;
+      margin: 14px 0 6px;
+      font-weight: 700;
+    }
+    .context-help {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 14px;
+    }
     .answer-grid {
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
@@ -175,8 +185,11 @@
 
     <section>
       <h2>未来问题模拟器</h2>
-      <p class="muted">输入一个具体问题，页面会先归类问题，再用当前 package 中的 Mindset、变量和证据链模拟回答。它不是实时事实检索，也不代表本人观点。</p>
+      <p class="muted">输入一个具体问题，页面会先归类问题，再用当前 package 中的 Mindset、变量和证据链给出判断框架。若要形成最终答案，请补充当时真实的数据或事件。</p>
       <textarea id="question" placeholder="例如：现在普通人还适合买房吗？要看哪些变量？"></textarea>
+      <label class="context-label" for="factContext">事实 / 事件 / 数据上下文</label>
+      <textarea id="factContext" placeholder="可粘贴当时真实信息，例如：NVDA/AMD/AVGO 最新财报与指引、半导体指数走势、估值分位、云厂商 capex 指引、Fed 利率与流动性变化、出口管制或供应链事件。未填写时，页面只输出判断框架，不输出最终答案。"></textarea>
+      <p class="context-help">本地 HTML 不联网检索实时数据。可靠答案需要你提供事实上下文，或接入后续的数据/事件检索层。</p>
       <button id="ask" type="button" disabled>用 AJM 回答</button>
       <div id="answer" class="answer">等待 package 加载。</div>
     </section>
@@ -316,6 +329,7 @@
     const answerBox = document.getElementById("answer");
     const askButton = document.getElementById("ask");
     const questionInput = document.getElementById("question");
+    const factContextInput = document.getElementById("factContext");
 
     function cleanText(value) {
       return String(value || "").replace(/\s+/g, " ").trim();
@@ -496,6 +510,52 @@
         .join("；");
     }
 
+    function contextLines(factContext) {
+      return String(factContext || "")
+        .split(/\n+/)
+        .map((item) => item.trim().replace(/^[-*•\d.、\s]+/u, ""))
+        .filter(Boolean)
+        .slice(0, 8);
+    }
+
+    function contextSignal(factContext) {
+      const text = cleanText(factContext);
+      const positiveTerms = ["超预期", "上调", "beat", "需求强", "订单强", "capex上修", "资本开支上修", "供给紧", "毛利率改善", "指引上修", "创新高", "放量上涨"];
+      const negativeTerms = ["低于预期", "下调", "miss", "砍单", "库存", "禁令", "管制", "估值过高", "毛利率下滑", "指引下修", "破位", "放量下跌"];
+      const positive = positiveTerms.filter((term) => text.includes(term)).length;
+      const negative = negativeTerms.filter((term) => text.includes(term)).length;
+      if (positive > negative) return "positive";
+      if (negative > positive) return "negative";
+      return "mixed";
+    }
+
+    function synthesizeWithFacts({ domain, variables, concept, factContext }) {
+      const facts = contextLines(factContext);
+      if (!facts.length) {
+        return [
+          "事实上下文：未提供。",
+          "因此这里不能形成最终答案，只能输出 AJM 判断框架。要回答这类实时市场问题，需要补充当时的财报、指引、估值、板块走势、宏观利率和重大事件。"
+        ].join("\n\n");
+      }
+      const labels = labelVariables(variables).join("、") || "核心变量";
+      const signal = contextSignal(factContext);
+      const factsText = facts.map((item) => `- ${item}`).join("\n");
+      const conceptName = concept && concept.name ? concept.name : domainName(domain);
+      const directional =
+        signal === "positive"
+          ? "若上述事实成立，结论应偏积极：该板块仍可被视为主线内的结构性机会，但不等于无条件追高。"
+          : signal === "negative"
+            ? "若上述事实成立，结论应偏谨慎：应先降低对板块的确定性，重点检查估值、趋势和风险预算。"
+            : "若上述事实成立，结论应偏中性审慎：先确认事实之间是否共振，再决定是等待、低吸还是回避追涨。";
+
+      return [
+        `事实上下文：\n${factsText}`,
+        `基于「${conceptName}」判断模型，需要把这些事实放入${labels}这组变量里校验。`,
+        `合成结论：${directional}`,
+        "操作含义：只有当需求、资本开支、供给约束、估值和流动性/事件变量同时支持时，才更接近“可继续观察或逢回撤筛选强者”；如果只是价格上涨或叙事升温，答案应转为“谨慎，等待事实确认”。"
+      ].join("\n\n");
+    }
+
     function directConclusion(question, domain, variables, concept) {
       const text = cleanText(question);
       const labels = labelVariables(variables).join("、") || "语料支持的核心变量";
@@ -537,7 +597,7 @@
       return `使用该作者的「${domainName(domain)}」判断模型时，应通过${labels}来评估这个问题，并在结论前说明边界和置信度。`;
     }
 
-    function answerQuestion(question) {
+    function answerQuestion(question, factContext = "") {
       const { profile, units, config } = state;
       const matchedConcept = matchConcept(question, profile, config);
       const domain = classifyQuestion(question, config, profile);
@@ -568,16 +628,20 @@
       }
 
       const labels = labelVariables(variables);
+      const factualSynthesis = synthesizeWithFacts({ domain, variables, concept: matchedConcept, factContext });
+      const hasFactContext = contextLines(factContext).length > 0;
       return {
         domain,
         confidence,
         variables,
         matchedConcept,
+        hasFactContext,
         triggerConditions: (matchedConcept && matchedConcept.trigger_conditions) || [],
         boundaryConditions: (matchedConcept && matchedConcept.boundary_conditions) || [],
         evidenceTrace,
         text: [
-          `直接结论：${directConclusion(question, domain, variables, matchedConcept)}`,
+          hasFactContext ? `基于事实的合成回答：${factualSynthesis}` : `当前状态：缺少真实数据/事件上下文，以下不是最终答案，只是判断框架。\n\n${factualSynthesis}`,
+          `AJM 判断框架：${directConclusion(question, domain, variables, matchedConcept)}`,
           matchedConcept ? `匹配概念：${matchedConcept.name}。` : "",
           matchedConcept && matchedConcept.trigger_conditions && matchedConcept.trigger_conditions.length ? `触发条件：${sentenceList(matchedConcept.trigger_conditions)}。` : "",
           matchedConcept && matchedConcept.boundary_conditions && matchedConcept.boundary_conditions.length ? `概念边界：${sentenceList(matchedConcept.boundary_conditions)}。` : "",
@@ -641,11 +705,12 @@
       answerBox.innerHTML = `
         <div class="answer-grid">
           <div>
-            <h3>模拟回答</h3>
+            <h3>${result.hasFactContext ? "事实合成回答" : "判断框架"}</h3>
             <p>${escapeHtml(result.text).replace(/\n/g, "<br>")}</p>
             <div class="chips">
               <span class="chip">归类：${escapeHtml(domainName(result.domain))}</span>
               <span class="chip">置信度：${escapeHtml(labelConfidence(result.confidence))}</span>
+              <span class="chip">事实上下文：${result.hasFactContext ? "已提供" : "未提供"}</span>
               ${result.matchedConcept ? `<span class="chip">概念：${escapeHtml(result.matchedConcept.name || result.matchedConcept.id)}</span>` : ""}
               ${(result.triggerConditions || []).slice(0, 2).map((item) => `<span class="chip">触发：${escapeHtml(item)}</span>`).join("")}
               ${(result.boundaryConditions || []).slice(0, 2).map((item) => `<span class="chip">边界：${escapeHtml(item)}</span>`).join("")}
@@ -690,7 +755,7 @@
         answerBox.textContent = "请先输入一个具体问题。";
         return;
       }
-      renderAnswer(answerQuestion(question));
+      renderAnswer(answerQuestion(question, factContextInput.value.trim()));
     });
 
     questionInput.addEventListener("keydown", (event) => {
