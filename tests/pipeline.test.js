@@ -37,7 +37,13 @@ const {
   exportConceptReviewPack,
   applyConceptReviewToProfileFromFiles
 } = require("../scripts/lib/concept-discovery");
-const { returnsForSeries, contextFromRows, symbolsForQuestion } = require("../scripts/lib/market-context");
+const {
+  returnsForSeries,
+  contextFromRows,
+  symbolsForQuestion,
+  futuCodeForSymbol,
+  parseJsonFromMixedOutput
+} = require("../scripts/lib/market-context");
 
 const config = require("../configs/weibo.default.json");
 
@@ -191,6 +197,20 @@ test("selects topic-specific market symbols for macro and China asset questions"
   assert.ok(china.includes("FXI"));
   assert.ok(generic.includes("SPY"));
   assert.ok(!generic.includes("SOXX"));
+});
+
+test("maps market symbols to Futu codes and parses Skill JSON with logs", () => {
+  assert.equal(futuCodeForSymbol("NVDA"), "US.NVDA");
+  assert.equal(futuCodeForSymbol("BTC-USD"), "CC.BTC");
+  assert.equal(futuCodeForSymbol("^VIX"), null);
+
+  const payload = parseJsonFromMixedOutput([
+    "2026-06-21 00:00:00 | log line",
+    "{\"code\":\"US.NVDA\",\"data\":[{\"close\":210.69}]}"
+  ].join("\n"));
+
+  assert.equal(payload.code, "US.NVDA");
+  assert.equal(payload.data[0].close, 210.69);
 });
 
 test("summarizes market rows into factual AJM context", () => {

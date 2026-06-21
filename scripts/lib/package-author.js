@@ -102,7 +102,7 @@ function buildSkill(profile) {
     "- 命中 profile concepts 时，必须显式输出概念、触发条件、边界条件和反例。",
     "- 对实时、未来、市场、价格、政策、财报、行情类问题，若用户没有提供事实/事件/数据上下文，只能给判断框架，不能伪装成最终答案。",
     "- 若用户提供了事实/事件/数据上下文，先列出采用了哪些事实，再把事实放入 AJM 变量和证据框架中合成结论。",
-    "- 可使用 `node scripts/ajm.js market-context --question \"...\"`、本地 HTML 的“生成市场事实上下文”按钮，或 Futu OpenD / PySnowball / 公开信息获取事实层；事实层必须和 AJM 判断层分开呈现。",
+    "- 可使用 `node scripts/ajm.js market-context --provider futu --question \"...\"`、本地 HTML 的“生成市场事实上下文”按钮，或 Futu OpenD / PySnowball / 公开信息获取事实层；事实层必须和 AJM 判断层分开呈现。",
     "- 包含证据 id、置信度和边界。",
     "- 不支持的主题要拒答或降低置信度。",
     "",

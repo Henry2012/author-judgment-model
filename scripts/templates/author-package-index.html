@@ -783,12 +783,12 @@
       contextStatus.textContent = "正在生成市场事实上下文。";
       contextStatus.className = "context-help";
       try {
-        const response = await fetch(`/api/market-context?question=${encodeURIComponent(question)}`, { cache: "no-store" });
+        const response = await fetch(`/api/market-context?provider=futu&question=${encodeURIComponent(question)}`, { cache: "no-store" });
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || "生成失败");
         factContextInput.value = result.context || "";
         const errorNote = result.errors && result.errors.length ? `；部分标的获取失败：${result.errors.map((item) => item.symbol).join("、")}` : "";
-        contextStatus.textContent = `已生成 ${result.symbols ? result.symbols.length : 0} 个标的的市场事实上下文${errorNote}。`;
+        contextStatus.textContent = `已用 ${result.provider || "市场数据源"} 生成 ${result.symbols ? result.symbols.length : 0} 个标的的市场事实上下文${errorNote}。`;
         contextStatus.className = "context-help status";
       } catch (error) {
         contextStatus.textContent = `生成失败：${error.message || error}。请确认本地运行 npm run concept-review，或手动粘贴 Futu / PySnowball / 公开数据。`;

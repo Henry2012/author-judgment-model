@@ -1,3 +1,8 @@
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
+const { execFile } = require("child_process");
+
 const DEFAULT_SEMICONDUCTOR_SYMBOLS = [
   { symbol: "SOXX", name: "iShares Semiconductor ETF" },
   { symbol: "SMH", name: "VanEck Semiconductor ETF" },
@@ -207,11 +212,154 @@ async function fetchPublicMarketContext({ question, fetchImpl, symbols } = {}) {
   };
 }
 
+function projectRoot() {
+  return path.resolve(__dirname, "..", "..");
+}
+
+function defaultFutuPython() {
+  const localPython = path.join(projectRoot(), ".venv-futu", "bin", "python");
+  if (fs.existsSync(localPython)) return localPython;
+  return "python3";
+}
+
+function defaultFutuKlineScript() {
+  return path.join(os.homedir(), "agent-skills", "personal", "futuapi", "scripts", "quote", "get_kline.py");
+}
+
+function futuCodeForSymbol(symbol) {
+  if (symbol === "BTC-USD") return "CC.BTC";
+  if (symbol === "ETH-USD") return "CC.ETH";
+  if (/^[A-Z][A-Z0-9.]*$/u.test(symbol)) return `US.${symbol}`;
+  return null;
+}
+
+function dateDaysAgo(days, now = new Date()) {
+  const date = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+  return date.toISOString().slice(0, 10);
+}
+
+function parseJsonFromMixedOutput(output) {
+  const lines = String(output || "").split(/\r?\n/u).map((line) => line.trim()).filter(Boolean);
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    if (!lines[index].startsWith("{")) continue;
+    try {
+      return JSON.parse(lines[index]);
+    } catch (_) {
+      // Keep scanning because Futu may print log lines before or after JSON.
+    }
+  }
+  throw new Error("Futu Skill did not return JSON");
+}
+
+function execFileJson(file, args, options = {}) {
+  return new Promise((resolve, reject) => {
+    execFile(file, args, {
+      cwd: projectRoot(),
+      timeout: options.timeoutMs || 60000,
+      maxBuffer: options.maxBuffer || 4 * 1024 * 1024,
+      env: {
+        ...process.env,
+        PYTHONIOENCODING: "utf-8"
+      }
+    }, (error, stdout, stderr) => {
+      if (error) {
+        reject(new Error((stderr || stdout || error.message || String(error)).trim()));
+        return;
+      }
+      try {
+        resolve(parseJsonFromMixedOutput(stdout));
+      } catch (parseError) {
+        reject(new Error(`${parseError.message}; stderr=${String(stderr || "").trim()}`));
+      }
+    });
+  });
+}
+
+async function fetchFutuSeries(spec, options = {}) {
+  const futuCode = spec.futuCode || futuCodeForSymbol(spec.symbol);
+  if (!futuCode) throw new Error(`${spec.symbol} is not mapped to a Futu code`);
+  const python = options.python || process.env.AJM_FUTU_PYTHON || defaultFutuPython();
+  const script = options.script || process.env.AJM_FUTU_KLINE_SCRIPT || defaultFutuKlineScript();
+  const end = options.end || new Date().toISOString().slice(0, 10);
+  const start = options.start || dateDaysAgo(100);
+  const payload = await execFileJson(python, [
+    script,
+    futuCode,
+    "--ktype",
+    "1d",
+    "--num",
+    "100",
+    "--start",
+    start,
+    "--end",
+    end,
+    "--json"
+  ], { timeoutMs: options.timeoutMs });
+  if (payload.error) throw new Error(payload.error);
+  const points = (payload.data || [])
+    .map((row) => ({
+      time: Date.parse(String(row.time || "").replace(" ", "T")),
+      close: Number(row.close)
+    }))
+    .filter((point) => Number.isFinite(point.time) && Number.isFinite(point.close));
+  if (!points.length) throw new Error(`${futuCode} no kline data`);
+  return points;
+}
+
+async function fetchFutuMarketContext({ question, symbols, futuOptions } = {}) {
+  const symbolSpecs = symbols || symbolsForQuestion(question);
+  const rows = [];
+  const errors = [];
+  for (const spec of symbolSpecs) {
+    try {
+      const points = await fetchFutuSeries(spec, futuOptions || {});
+      rows.push({
+        symbol: spec.symbol,
+        name: spec.name,
+        ...returnsForSeries(points)
+      });
+    } catch (error) {
+      errors.push({ symbol: spec.symbol, error: error.message || String(error) });
+    }
+  }
+  const result = contextFromRows({
+    question,
+    rows,
+    provider: "Futu OpenD Skill",
+    asOf: new Date().toISOString()
+  });
+  return {
+    ...result,
+    errors
+  };
+}
+
+async function fetchMarketContext({ question, provider = "auto", fetchImpl, symbols, futuOptions } = {}) {
+  if (provider === "public" || provider === "yahoo") {
+    return fetchPublicMarketContext({ question, fetchImpl, symbols });
+  }
+  if (provider === "futu") {
+    return fetchFutuMarketContext({ question, symbols, futuOptions });
+  }
+  const futu = await fetchFutuMarketContext({ question, symbols, futuOptions });
+  if (futu.rows && futu.rows.length) return futu;
+  const fallback = await fetchPublicMarketContext({ question, fetchImpl, symbols });
+  return {
+    ...fallback,
+    provider: `${fallback.provider} fallback after Futu OpenD Skill`,
+    futu_errors: futu.errors
+  };
+}
+
 module.exports = {
   DEFAULT_SEMICONDUCTOR_SYMBOLS,
   MARKET_SYMBOL_GROUPS,
   symbolsForQuestion,
   returnsForSeries,
   contextFromRows,
-  fetchPublicMarketContext
+  fetchPublicMarketContext,
+  fetchFutuMarketContext,
+  fetchMarketContext,
+  futuCodeForSymbol,
+  parseJsonFromMixedOutput
 };

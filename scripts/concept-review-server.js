@@ -3,7 +3,7 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const { packageAuthorUnit } = require("./lib/package-author");
-const { fetchPublicMarketContext } = require("./lib/market-context");
+const { fetchMarketContext } = require("./lib/market-context");
 
 const root = path.resolve(__dirname, "..");
 const port = Number(process.env.PORT || 8000);
@@ -193,11 +193,12 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && req.url.startsWith("/api/market-context")) {
       const url = new URL(req.url, `http://localhost:${port}`);
       const question = url.searchParams.get("question") || "";
+      const provider = url.searchParams.get("provider") || "auto";
       if (!question.trim()) {
         sendJson(res, 400, { error: "question is required" });
         return;
       }
-      const result = await fetchPublicMarketContext({ question });
+      const result = await fetchMarketContext({ question, provider });
       sendJson(res, 200, result);
       return;
     }
