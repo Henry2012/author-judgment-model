@@ -24,6 +24,7 @@ const {
   discoverConceptCandidatesFromFiles,
   applyConceptReviewToProfileFromFiles
 } = require("./lib/concept-discovery");
+const { fetchPublicMarketContext } = require("./lib/market-context");
 
 function parseArgs(argv) {
   const args = { _: [] };
@@ -60,6 +61,7 @@ function usage() {
     "  node scripts/ajm.js run-llm-batches --requests <requests.jsonl> --results <results.jsonl> --model <model> [--base-url <url>] [--api-key-env OPENAI_API_KEY] [--limit n]",
     "  node scripts/ajm.js import-llm-units --posts <posts.json> --results <results.jsonl> --out <judgment-units.json> [--unit-prefix llm_unit]",
     "  node scripts/ajm.js answer --profile <author-judgment-profile.json> --units <judgment-units.json> --question <question> [--config configs/weibo.default.json]",
+    "  node scripts/ajm.js market-context --question <question>",
     "  node scripts/ajm.js run-validation-cases --cases <validation-cases.json> --profile <author-judgment-profile.json> --units <judgment-units.json> [--config configs/weibo.default.json]",
     "  node scripts/ajm.js generate-validation-cases --profile <author-judgment-profile.json> --out <validation-cases.json> [--config configs/weibo.default.json] [--max-domains 6] [--case-prefix author]",
     "  node scripts/ajm.js apply-validation-results --cases <validation-cases.json> --profile <author-judgment-profile.json> --units <judgment-units.json> [--out <profile.json>] [--config configs/weibo.default.json]",
@@ -90,7 +92,7 @@ function usage() {
   ].join("\n");
 }
 
-function main() {
+async function main() {
   const args = parseArgs(process.argv.slice(2));
   const command = args._[0];
 
@@ -479,6 +481,18 @@ function main() {
     return;
   }
 
+  if (command === "market-context") {
+    if (!args.question) {
+      console.error(usage());
+      process.exit(1);
+    }
+    const result = await fetchPublicMarketContext({
+      question: args.question
+    });
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+
   if (command !== "build-weibo" || !args.raw) {
     console.error(usage());
     process.exit(command === "help" ? 0 : 1);
@@ -496,5 +510,8 @@ function main() {
 }
 
 if (require.main === module) {
-  main();
+  main().catch((error) => {
+    console.error(error.stack || error.message || String(error));
+    process.exit(1);
+  });
 }

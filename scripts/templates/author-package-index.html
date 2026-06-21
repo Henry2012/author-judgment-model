@@ -190,6 +190,8 @@
       <label class="context-label" for="factContext">事实 / 事件 / 数据上下文</label>
       <textarea id="factContext" placeholder="可粘贴当时真实信息，例如：NVDA/AMD/AVGO 最新财报与指引、半导体指数走势、估值分位、云厂商 capex 指引、Fed 利率与流动性变化、出口管制或供应链事件。未填写时，页面只输出判断框架，不输出最终答案。"></textarea>
       <p class="context-help">本地 HTML 不联网检索实时数据。可靠答案需要你提供事实上下文，或接入后续的数据/事件检索层。</p>
+      <button id="fetchContext" type="button" disabled>生成市场事实上下文</button>
+      <p id="contextStatus" class="context-help">可先自动生成行情事实，再补充财报、政策或事件。</p>
       <button id="ask" type="button" disabled>用 AJM 回答</button>
       <div id="answer" class="answer">等待 package 加载。</div>
     </section>
@@ -328,6 +330,8 @@
 
     const answerBox = document.getElementById("answer");
     const askButton = document.getElementById("ask");
+    const fetchContextButton = document.getElementById("fetchContext");
+    const contextStatus = document.getElementById("contextStatus");
     const questionInput = document.getElementById("question");
     const factContextInput = document.getElementById("factContext");
 
@@ -520,12 +524,21 @@
 
     function contextSignal(factContext) {
       const text = cleanText(factContext);
+      const signalText = text.replace(/事件\/基本面仍需补充.*/u, "");
       const positiveTerms = ["超预期", "上调", "beat", "需求强", "订单强", "capex上修", "资本开支上修", "供给紧", "毛利率改善", "指引上修", "创新高", "放量上涨"];
       const negativeTerms = ["低于预期", "下调", "miss", "砍单", "库存", "禁令", "管制", "估值过高", "毛利率下滑", "指引下修", "破位", "放量下跌"];
-      const positive = positiveTerms.filter((term) => text.includes(term)).length;
-      const negative = negativeTerms.filter((term) => text.includes(term)).length;
+      const positive = positiveTerms.filter((term) => signalText.includes(term)).length;
+      const negative = negativeTerms.filter((term) => signalText.includes(term)).length;
       if (positive > negative) return "positive";
       if (negative > positive) return "negative";
+      const monthlyReturns = Array.from(signalText.matchAll(/1月\s*([+-]\d+(?:\.\d+)?)%/g)).map((match) => Number(match[1])).filter(Number.isFinite);
+      if (monthlyReturns.length >= 3) {
+        const advancing = monthlyReturns.filter((value) => value > 0).length;
+        const declining = monthlyReturns.filter((value) => value < 0).length;
+        const average = monthlyReturns.reduce((sum, value) => sum + value, 0) / monthlyReturns.length;
+        if (advancing >= Math.ceil(monthlyReturns.length * 0.65) && average > 5) return "positive";
+        if (declining >= Math.ceil(monthlyReturns.length * 0.5) && average < -3) return "negative";
+      }
       return "mixed";
     }
 
@@ -741,6 +754,7 @@
         document.getElementById("load-status").className = "status";
         document.getElementById("load-status").textContent = "AJM package 已加载。";
         askButton.disabled = false;
+        fetchContextButton.disabled = false;
         answerBox.textContent = "等待输入。";
       } catch (error) {
         document.getElementById("load-status").className = "warning";
@@ -756,6 +770,32 @@
         return;
       }
       renderAnswer(answerQuestion(question, factContextInput.value.trim()));
+    });
+
+    fetchContextButton.addEventListener("click", async () => {
+      const question = questionInput.value.trim();
+      if (!question) {
+        contextStatus.textContent = "请先输入问题，再生成市场事实上下文。";
+        contextStatus.className = "context-help warning";
+        return;
+      }
+      fetchContextButton.disabled = true;
+      contextStatus.textContent = "正在生成市场事实上下文。";
+      contextStatus.className = "context-help";
+      try {
+        const response = await fetch(`/api/market-context?question=${encodeURIComponent(question)}`, { cache: "no-store" });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "生成失败");
+        factContextInput.value = result.context || "";
+        const errorNote = result.errors && result.errors.length ? `；部分标的获取失败：${result.errors.map((item) => item.symbol).join("、")}` : "";
+        contextStatus.textContent = `已生成 ${result.symbols ? result.symbols.length : 0} 个标的的市场事实上下文${errorNote}。`;
+        contextStatus.className = "context-help status";
+      } catch (error) {
+        contextStatus.textContent = `生成失败：${error.message || error}。请确认本地运行 npm run concept-review，或手动粘贴 Futu / PySnowball / 公开数据。`;
+        contextStatus.className = "context-help warning";
+      } finally {
+        fetchContextButton.disabled = false;
+      }
     });
 
     questionInput.addEventListener("keydown", (event) => {

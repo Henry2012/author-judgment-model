@@ -37,6 +37,7 @@ const {
   exportConceptReviewPack,
   applyConceptReviewToProfileFromFiles
 } = require("../scripts/lib/concept-discovery");
+const { returnsForSeries, contextFromRows, symbolsForQuestion } = require("../scripts/lib/market-context");
 
 const config = require("../configs/weibo.default.json");
 
@@ -167,6 +168,56 @@ test("normalizes X raw tweets into canonical posts", () => {
   assert.equal(posts[0].engagement.likes, 10);
   assert.equal(posts[0].engagement.reposts, 4);
   assert.equal(posts[0].capture.coverage_note, "2025-06-14T00:00:00+00:00 to 2026-06-14T00:00:00+00:00");
+});
+
+test("selects semiconductor market symbols for semiconductor questions", () => {
+  const symbols = symbolsForQuestion("如何看待7月美股半导体板块？").map((item) => item.symbol);
+
+  assert.ok(symbols.includes("SOXX"));
+  assert.ok(symbols.includes("SMH"));
+  assert.ok(symbols.includes("NVDA"));
+  assert.ok(symbols.includes("AMD"));
+  assert.ok(symbols.includes("AVGO"));
+});
+
+test("selects topic-specific market symbols for macro and China asset questions", () => {
+  const macro = symbolsForQuestion("Fed降息后流动性怎么看？").map((item) => item.symbol);
+  const china = symbolsForQuestion("中国资产和中概股还有机会吗？").map((item) => item.symbol);
+  const generic = symbolsForQuestion("portfolio risk budget").map((item) => item.symbol);
+
+  assert.ok(macro.includes("^TNX"));
+  assert.ok(macro.includes("TLT"));
+  assert.ok(china.includes("KWEB"));
+  assert.ok(china.includes("FXI"));
+  assert.ok(generic.includes("SPY"));
+  assert.ok(!generic.includes("SOXX"));
+});
+
+test("summarizes market rows into factual AJM context", () => {
+  const now = Date.UTC(2026, 5, 21);
+  const series = [
+    { time: now - 90 * 24 * 60 * 60 * 1000, close: 100 },
+    { time: now - 30 * 24 * 60 * 60 * 1000, close: 120 },
+    { time: now - 1 * 24 * 60 * 60 * 1000, close: 130 },
+    { time: now, close: 132 }
+  ];
+  const row = {
+    symbol: "NVDA",
+    name: "NVIDIA",
+    ...returnsForSeries(series)
+  };
+  const result = contextFromRows({
+    question: "如何看待7月美股半导体板块？",
+    rows: [row],
+    provider: "test-provider",
+    asOf: "2026-06-21T00:00:00.000Z"
+  });
+
+  assert.equal(row.oneDayPct.toFixed(1), "1.5");
+  assert.equal(row.oneMonthPct.toFixed(1), "10.0");
+  assert.ok(result.context.includes("数据来源：test-provider"));
+  assert.ok(result.context.includes("NVDA 最新 132.00"));
+  assert.ok(result.context.includes("事件/基本面仍需补充"));
 });
 
 test("extracts evidence-backed judgment units and maps from posts", () => {
