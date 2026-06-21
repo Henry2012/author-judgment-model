@@ -314,7 +314,7 @@
     <div class="wrap topbar">
       <div>
         <h1>AJM Concept 打标台</h1>
-        <p class="subtitle">勾选真实稳定概念，点击提交后写入 profile.concepts 并重打包对应作者 package。</p>
+        <p class="subtitle">勾选真实稳定概念，点击提交后勾选项写入 profile.concepts，未勾选项记为 reject。</p>
       </div>
       <div class="toolbar">
         <a class="button" id="openPackage" target="_blank" rel="noreferrer">打开作者问答页</a>
@@ -526,7 +526,7 @@
         const [manifest, review] = await Promise.all([loadManifest(author), loadReview(author)]);
         renderMeta(author, manifest, review);
         renderConcepts(review);
-        setStatus("已加载。勾选后点击提交并融合。", "ok");
+        setStatus("已加载。勾选后提交；未勾选项会记为 reject。", "ok");
       } catch (error) {
         conceptList.innerHTML = `<div class="empty">${escapeHtml(error.message || error)}</div>`;
         setStatus("加载失败。", "bad");

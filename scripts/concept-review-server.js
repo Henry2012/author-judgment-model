@@ -96,7 +96,7 @@ function applyAcceptedConcepts(authorId, acceptedIds) {
 
   review.concepts = (review.concepts || []).map((concept) => ({
     ...concept,
-    review_decision: accepted.has(concept.id) ? "accept" : concept.review_decision === "accept" ? "review" : concept.review_decision
+    review_decision: accepted.has(concept.id) ? "accept" : "reject"
   }));
   review.last_applied_at = now;
   writeJson(reviewPath, review);
