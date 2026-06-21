@@ -35,6 +35,12 @@ function scoreConcept(text, concept) {
   return aliasScore + triggerScore + variableScore;
 }
 
+function conceptSpecificity(concept) {
+  const domainCount = Array.isArray(concept.domains) && concept.domains.length ? concept.domains.length : 99;
+  const sourceBonus = concept.discovery_source === "trading_domain_split" ? -1 : 0;
+  return domainCount + sourceBonus;
+}
+
 function matchConcept(question, profile, config = {}) {
   const text = cleanText(question);
   const profileConcepts = Array.isArray(profile.concepts) ? profile.concepts : [];
@@ -47,7 +53,7 @@ function matchConcept(question, profile, config = {}) {
       return { concept: merged, score: scoreConcept(text, merged) };
     })
     .filter((item) => item.score > 0)
-    .sort((a, b) => b.score - a.score);
+    .sort((a, b) => b.score - a.score || conceptSpecificity(a.concept) - conceptSpecificity(b.concept));
   return scored[0]?.concept || null;
 }
 
@@ -161,6 +167,15 @@ function directConclusionFor({ question, domain, variables, config, concept }) {
       `按该作者判断模型，这个问题属于「${domainLabel}」，不是简单问“能不能买”。`,
       `更接近的结论是：先确认产业需求、供给约束、业绩增长和科技主线是否仍成立；若逻辑仍强但短期已经加速，应避免追涨，倾向等待回踩或用风控约束仓位。`,
       "具体到单只标的和持有到某个日期，历史语料不足以直接替代实时交易判断。"
+    ].join("");
+  }
+
+  if (concept?.id === "ai_compute_semis_infrastructure" || domain === "ai_semis_infrastructure") {
+    return [
+      `按该作者判断模型，这个问题触发「${concept?.name || domainLabel}」，不能只用“7月会不会涨”来回答。`,
+      "更接近的结论是：美股半导体仍应先看 AI 需求是否继续兑现、算力供给是否紧、数据中心资本开支是否持续、电力/供应链约束是否强化，以及估值是否已经提前透支。",
+      "如果这些变量继续共振，板块更像是仍在主线内寻找结构性机会；如果只是短线情绪升温、估值抬高但基本面和资本开支没有新增证据，则应降低追涨冲动，等待财报、指引或回撤后的风险收益改善。",
+      "7月这种具体时间窗口需要实时行情、估值和财报日程外部核验，AJM 这里只能给判断框架和倾向，不能给确定买卖指令。"
     ].join("");
   }
 

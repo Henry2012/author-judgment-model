@@ -60,6 +60,22 @@
       opacity: .7;
     }
     button:hover:not(:disabled) { background: var(--accent-strong); }
+    a.button-link {
+      display: inline-flex;
+      align-items: center;
+      min-height: 36px;
+      padding: 7px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--accent);
+      background: #fff;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    a.button-link:hover {
+      border-color: var(--accent);
+      background: var(--soft);
+    }
     code {
       padding: 1px 4px;
       border-radius: 4px;
@@ -68,6 +84,7 @@
     .muted { color: var(--muted); }
     .status { color: var(--ok); font-weight: 600; }
     .warning { color: var(--warn); font-weight: 600; }
+    .header-actions { margin-bottom: 14px; }
     .grid {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -137,6 +154,9 @@
 </head>
 <body>
   <header>
+    <div class="header-actions">
+      <a class="button-link" href="../../author-judgment-site/index.html">返回打标台</a>
+    </div>
     <h1 id="page-title">AJM 可视化问答</h1>
     <p class="muted">读取当前 package 的 <code>author-judgment-profile.json</code>、<code>judgment-units.json</code> 和 <code>config.json</code>，用蒸馏后的判断单元回答问题。</p>
     <p id="load-status" class="muted">正在加载 AJM package...</p>
@@ -242,7 +262,49 @@
       volume_confirmation: "成交量确认",
       index_feedback: "指数反馈",
       market_breadth: "市场广度",
-      short_term_signal: "短线信号"
+      short_term_signal: "短线信号",
+      ai_demand: "AI 需求强度",
+      compute_supply: "算力供给",
+      power_constraint: "电力约束",
+      capex_cycle: "资本开支周期",
+      supply_chain_position: "产业链位置",
+      distribution: "分发能力",
+      enterprise_trust: "企业客户信任",
+      cloud_revenue: "云业务收入",
+      agent_adoption: "AI Agent 采用率",
+      data_control: "数据控制权",
+      competitive_moat: "竞争护城河",
+      inflation_path: "通胀路径",
+      fed_reaction_function: "美联储反应函数",
+      liquidity_condition: "流动性环境",
+      treasury_cash_balance: "财政部现金余额",
+      reserve_level: "银行准备金水平",
+      fiscal_impulse: "财政脉冲",
+      asset_price_impact: "资产价格影响",
+      revenue_growth: "收入增长",
+      margin_profile: "利润率结构",
+      valuation_multiple: "估值倍数",
+      management_guidance: "管理层指引",
+      business_moat: "商业护城河",
+      demand_supply_balance: "供需平衡",
+      research_depth: "研究深度",
+      conviction_source: "持仓信念来源",
+      drawdown_tolerance: "回撤承受力",
+      risk_budget: "风险预算",
+      fundamental_thesis: "基本面假设",
+      technical_timing: "技术面时机",
+      exit_plan: "退出计划",
+      stablecoin_adoption: "稳定币采用率",
+      regulatory_risk: "监管风险",
+      lockup_supply: "解禁供给",
+      market_sentiment: "市场情绪",
+      thesis_durability: "投资假设持续性",
+      geopolitical_risk: "地缘风险",
+      tariff_impact: "关税影响",
+      export_control: "出口管制",
+      china_demand: "中国需求",
+      valuation_discount: "估值折价",
+      negotiation_path: "谈判路径"
     };
 
     const confidenceLabels = {
@@ -292,6 +354,12 @@
       );
     }
 
+    function conceptSpecificity(concept) {
+      const domainCount = concept && concept.domains && concept.domains.length ? concept.domains.length : 99;
+      const sourceBonus = concept && concept.discovery_source === "trading_domain_split" ? -1 : 0;
+      return domainCount + sourceBonus;
+    }
+
     function matchConcept(question, profile, config) {
       const text = cleanText(question);
       const profileConcepts = Array.isArray(profile.concepts) ? profile.concepts : [];
@@ -304,7 +372,7 @@
           return { concept: merged, score: scoreConcept(text, merged) };
         })
         .filter((item) => item.score > 0)
-        .sort((a, b) => b.score - a.score);
+        .sort((a, b) => b.score - a.score || conceptSpecificity(a.concept) - conceptSpecificity(b.concept));
       return scored[0] ? scored[0].concept : null;
     }
 
@@ -420,6 +488,14 @@
       return `该判断模型属于「${domainName(domain)}」判断域，会优先检查${labels.join("、") || "语料支持的核心变量"}，再结合证据链判断问题是否落在作者稳定表达过的范围内。`;
     }
 
+    function sentenceList(items, limit = 2) {
+      return (items || [])
+        .slice(0, limit)
+        .map((item) => String(item || "").trim().replace(/[。；;.\s]+$/u, ""))
+        .filter(Boolean)
+        .join("；");
+    }
+
     function directConclusion(question, domain, variables, concept) {
       const text = cleanText(question);
       const labels = labelVariables(variables).join("、") || "语料支持的核心变量";
@@ -442,6 +518,14 @@
           `按该作者判断模型，这个问题属于「${domainName(domain)}」，不是简单问“能不能买”。`,
           "更接近的结论是：先确认产业需求、供给约束、业绩增长和科技主线是否仍成立；若逻辑仍强但短期已经加速，应避免追涨，倾向等待回踩或用风控约束仓位。",
           "具体到单只标的和持有到某个日期，历史语料不足以直接替代实时交易判断。"
+        ].join("");
+      }
+      if ((concept && concept.id === "ai_compute_semis_infrastructure") || domain === "ai_semis_infrastructure") {
+        return [
+          `按该作者判断模型，这个问题触发「${(concept && concept.name) || domainName(domain)}」，不能只用“7月会不会涨”来回答。`,
+          "更接近的结论是：美股半导体仍应先看 AI 需求是否继续兑现、算力供给是否紧、数据中心资本开支是否持续、电力/供应链约束是否强化，以及估值是否已经提前透支。",
+          "如果这些变量继续共振，板块更像是仍在主线内寻找结构性机会；如果只是短线情绪升温、估值抬高但基本面和资本开支没有新增证据，则应降低追涨冲动，等待财报、指引或回撤后的风险收益改善。",
+          "7月这种具体时间窗口需要实时行情、估值和财报日程外部核验，AJM 这里只能给判断框架和倾向，不能给确定买卖指令。"
         ].join("");
       }
       if (domain === "trend_structure_timing") {
@@ -495,8 +579,8 @@
         text: [
           `直接结论：${directConclusion(question, domain, variables, matchedConcept)}`,
           matchedConcept ? `匹配概念：${matchedConcept.name}。` : "",
-          matchedConcept && matchedConcept.trigger_conditions && matchedConcept.trigger_conditions.length ? `触发条件：${matchedConcept.trigger_conditions.slice(0, 2).join("；")}。` : "",
-          matchedConcept && matchedConcept.boundary_conditions && matchedConcept.boundary_conditions.length ? `概念边界：${matchedConcept.boundary_conditions.slice(0, 2).join("；")}。` : "",
+          matchedConcept && matchedConcept.trigger_conditions && matchedConcept.trigger_conditions.length ? `触发条件：${sentenceList(matchedConcept.trigger_conditions)}。` : "",
+          matchedConcept && matchedConcept.boundary_conditions && matchedConcept.boundary_conditions.length ? `概念边界：${sentenceList(matchedConcept.boundary_conditions)}。` : "",
           `判断变量：${labels.join("、") || "当前 package 支持的核心变量"}。`,
           `可能的判断逻辑：${summarizeModel(domain, variables)}`,
           "行动倾向：先套用证据支持的模型，再说明边界和置信度。",
