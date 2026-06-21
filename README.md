@@ -4,21 +4,21 @@ Author Judgment Model, abbreviated as AJM, is a framework for distilling an auth
 
 The target is not to clone the author's tone, style, catchphrases, emoji habits, or chat behavior. The target is to extract how the author judges: mental models, decision heuristics, anti-patterns, honest boundaries, evidence maps, and validation mechanisms.
 
-## Local Multi-author Site
+## Local Concept Review Site
 
-After building author packages under `dist/`, use the local multi-author entry at:
+After building author packages under `dist/`, use the local concept review entry at:
 
 ```text
 site/author-judgment-site/index.html
 ```
 
-For local use, copy or publish that entry to `dist/author-judgment-site/index.html`, then run:
+For local use, copy or publish that entry to `dist/author-judgment-site/index.html`, then run the writable review server:
 
 ```sh
-python3 -m http.server 8000
+npm run concept-review
 ```
 
-Open `http://localhost:8000/dist/author-judgment-site/index.html` to switch between available author packages.
+Open `http://localhost:8000/dist/author-judgment-site/index.html` to review candidate concepts. Checked concepts are accepted; clicking submit writes them into `profile.concepts` and rebuilds the matching author package. A plain `python3 -m http.server 8000` can display the page but cannot submit review decisions.
 
 ## 1. Goal
 

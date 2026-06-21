@@ -3,24 +3,24 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Author Judgment Model</title>
+  <title>AJM Concept 打标台</title>
   <style>
     :root {
       color-scheme: light;
       --text: #17191c;
       --muted: #667085;
-      --line: #d9dee7;
-      --soft: #f6f8fb;
+      --line: #d8dee8;
+      --soft: #f5f7fa;
+      --surface: #ffffff;
       --accent: #0f62d6;
       --accent-soft: #eaf2ff;
-      --warn: #8a5a00;
-      --surface: #ffffff;
+      --ok: #137333;
+      --warn: #9a5b00;
+      --bad: #b3261e;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
@@ -34,16 +34,16 @@
     }
 
     .wrap {
-      width: min(1180px, calc(100vw - 40px));
+      width: min(1240px, calc(100vw - 40px));
       margin: 0 auto;
     }
 
     .topbar {
+      min-height: 76px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 20px;
-      min-height: 76px;
+      gap: 16px;
     }
 
     h1 {
@@ -55,24 +55,24 @@
     .subtitle {
       margin: 6px 0 0;
       color: var(--muted);
-      line-height: 1.5;
+      line-height: 1.45;
     }
 
-    .actions {
+    .toolbar {
       display: flex;
-      align-items: center;
-      gap: 10px;
+      gap: 8px;
       flex-wrap: wrap;
       justify-content: flex-end;
     }
 
-    .button {
+    button, a.button {
       min-height: 38px;
       border: 1px solid var(--line);
       border-radius: 8px;
       background: var(--surface);
       color: var(--text);
       padding: 8px 12px;
+      font: inherit;
       font-size: 14px;
       text-decoration: none;
       cursor: pointer;
@@ -82,15 +82,20 @@
       white-space: nowrap;
     }
 
-    .button:hover {
+    button:hover:not(:disabled), a.button:hover {
       border-color: var(--accent);
       color: var(--accent);
     }
 
-    .button.primary {
+    button.primary {
       background: var(--accent);
       border-color: var(--accent);
-      color: white;
+      color: #fff;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: .55;
     }
 
     main {
@@ -112,13 +117,9 @@
 
     .author-button {
       width: 100%;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--surface);
-      color: var(--text);
       text-align: left;
+      background: var(--surface);
       padding: 14px;
-      cursor: pointer;
     }
 
     .author-button[aria-selected="true"] {
@@ -128,8 +129,8 @@
 
     .author-button strong {
       display: block;
+      margin-bottom: 5px;
       font-size: 16px;
-      margin-bottom: 6px;
     }
 
     .author-button span {
@@ -142,7 +143,7 @@
     .panel {
       min-width: 0;
       display: grid;
-      grid-template-rows: auto 1fr;
+      grid-template-rows: auto auto 1fr;
     }
 
     .meta {
@@ -166,7 +167,7 @@
       line-height: 1.55;
     }
 
-    .stats {
+    .chips {
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
@@ -182,34 +183,99 @@
       white-space: nowrap;
     }
 
-    .frame-wrap {
-      min-height: 0;
+    .chip.ok { color: var(--ok); background: #e8f5e9; }
+    .chip.warn { color: var(--warn); background: #fff4df; }
+    .chip.bad { color: var(--bad); background: #fdecec; }
+
+    .review-actions {
+      border-bottom: 1px solid var(--line);
+      padding: 12px 22px;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      background: #fbfcfe;
+    }
+
+    .status {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .status.ok { color: var(--ok); }
+    .status.warn { color: var(--warn); }
+    .status.bad { color: var(--bad); }
+
+    .concept-list {
+      padding: 18px 22px 32px;
+      display: grid;
+      gap: 10px;
+      align-content: start;
       background: #f9fafc;
     }
 
-    iframe {
-      width: 100%;
-      height: 100%;
-      min-height: calc(100vh - 160px);
-      border: 0;
-      background: white;
-      display: block;
+    .concept-row {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      padding: 12px;
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: start;
     }
 
-    .notice {
-      color: var(--warn);
+    .concept-row.accepted {
+      border-color: var(--accent);
+      background: #f8fbff;
     }
 
-    @media (max-width: 860px) {
-      .topbar,
-      .meta {
-        grid-template-columns: 1fr;
+    .concept-row input {
+      width: 18px;
+      height: 18px;
+      margin-top: 3px;
+      accent-color: var(--accent);
+    }
+
+    .concept-title {
+      margin: 0 0 6px;
+      font-size: 16px;
+      line-height: 1.35;
+    }
+
+    .concept-summary {
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 14px;
+      overflow-wrap: anywhere;
+    }
+
+    .concept-meta {
+      display: flex;
+      justify-content: flex-end;
+      gap: 6px;
+      flex-wrap: wrap;
+      min-width: 180px;
+    }
+
+    .empty {
+      border: 1px dashed var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      padding: 28px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    @media (max-width: 900px) {
+      .topbar, .meta {
         display: grid;
         align-items: start;
       }
 
-      .actions,
-      .stats {
+      .toolbar, .chips {
         justify-content: flex-start;
       }
 
@@ -226,23 +292,20 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
-      iframe {
-        min-height: 720px;
+      .concept-row {
+        grid-template-columns: 28px minmax(0, 1fr);
+      }
+
+      .concept-meta {
+        grid-column: 2;
+        justify-content: flex-start;
       }
     }
 
     @media (max-width: 560px) {
-      .wrap {
-        width: min(100vw - 24px, 1180px);
-      }
-
-      .author-list {
-        grid-template-columns: 1fr;
-      }
-
-      h1 {
-        font-size: 21px;
-      }
+      .wrap { width: min(100vw - 24px, 1240px); }
+      .author-list { grid-template-columns: 1fr; }
+      h1 { font-size: 21px; }
     }
   </style>
 </head>
@@ -250,12 +313,12 @@
   <header>
     <div class="wrap topbar">
       <div>
-        <h1>Author Judgment Model</h1>
-        <p class="subtitle">在一个站点中切换不同作者的判断力蒸馏 package。</p>
+        <h1>AJM Concept 打标台</h1>
+        <p class="subtitle">勾选真实稳定概念，点击提交后写入 profile.concepts 并重打包对应作者 package。</p>
       </div>
-      <div class="actions">
-        <a class="button" id="openCurrent" target="_blank" rel="noreferrer">打开当前作者页面</a>
-        <a class="button primary" href="../../README.md" target="_blank" rel="noreferrer">查看项目说明</a>
+      <div class="toolbar">
+        <a class="button" id="openPackage" target="_blank" rel="noreferrer">打开作者问答页</a>
+        <a class="button" href="../../README.md" target="_blank" rel="noreferrer">项目说明</a>
       </div>
     </div>
   </header>
@@ -269,13 +332,21 @@
       <div class="meta">
         <div>
           <h2 id="authorTitle">加载中</h2>
-          <p id="authorDescription">正在读取作者 package。</p>
+          <p id="authorDescription">正在读取候选 Concepts。</p>
         </div>
-        <div class="stats" id="stats"></div>
+        <div class="chips" id="stats"></div>
       </div>
-      <div class="frame-wrap">
-        <iframe id="authorFrame" title="Author package"></iframe>
+
+      <div class="review-actions">
+        <div class="toolbar">
+          <button type="button" id="selectPass">勾选 Quality Pass</button>
+          <button type="button" id="clearAll">清空勾选</button>
+          <button type="button" class="primary" id="submitAccept">提交并融合</button>
+        </div>
+        <div class="status" id="status">等待加载。</div>
       </div>
+
+      <div class="concept-list" id="conceptList"></div>
     </section>
   </main>
 
@@ -286,6 +357,7 @@
         name: "三叔",
         handle: "sanshu",
         packagePath: "../weibo-2611641261-pruned/package/",
+        reviewPath: "../weibo-2611641261-pruned/review/concepts/concept-review-template.json",
         note: "房产、城市、资产配置判断模型"
       },
       {
@@ -293,21 +365,28 @@
         name: "交易者简放",
         handle: "trader-jianfang",
         packagePath: "../weibo-1357064103-pruned/package/",
+        reviewPath: "../weibo-1357064103-pruned/review/concepts/concept-review-template.json",
         note: "市场主线、趋势结构、风控与科技产业判断模型"
       }
     ];
 
     const state = {
       selected: authors[0],
-      manifests: new Map()
+      manifests: new Map(),
+      reviews: new Map(),
+      accepted: new Map()
     };
 
     const authorList = document.getElementById("authorList");
     const authorTitle = document.getElementById("authorTitle");
     const authorDescription = document.getElementById("authorDescription");
     const stats = document.getElementById("stats");
-    const authorFrame = document.getElementById("authorFrame");
-    const openCurrent = document.getElementById("openCurrent");
+    const conceptList = document.getElementById("conceptList");
+    const statusEl = document.getElementById("status");
+    const openPackage = document.getElementById("openPackage");
+    const selectPass = document.getElementById("selectPass");
+    const clearAll = document.getElementById("clearAll");
+    const submitAccept = document.getElementById("submitAccept");
 
     function escapeHtml(value) {
       return String(value || "")
@@ -317,27 +396,35 @@
         .replace(/"/g, "&quot;");
     }
 
-    function formatDate(value) {
-      if (!value) return "未知";
-      return String(value).replace("T", " ").replace("+08:00", "");
+    function setStatus(message, kind = "") {
+      statusEl.className = `status ${kind}`.trim();
+      statusEl.textContent = message;
     }
 
-    function localizeLimitation(value) {
-      const text = String(value || "").trim();
-      if (!text) return "";
-      if (/Coverage depends on the supplied Weibo raw corpus/i.test(text)) {
-        return "覆盖范围取决于当前提供的微博原始语料。";
-      }
-      return text;
+    async function loadJson(path) {
+      const response = await fetch(path, { cache: "no-store" });
+      if (!response.ok) throw new Error(`${path} ${response.status}`);
+      return response.json();
     }
 
     async function loadManifest(author) {
       if (state.manifests.has(author.id)) return state.manifests.get(author.id);
-      const response = await fetch(`${author.packagePath}manifest.json`, { cache: "no-store" });
-      if (!response.ok) throw new Error(`${author.name} manifest 加载失败`);
-      const manifest = await response.json();
+      const manifest = await loadJson(`${author.packagePath}manifest.json`);
       state.manifests.set(author.id, manifest);
       return manifest;
+    }
+
+    async function loadReview(author) {
+      if (state.reviews.has(author.id)) return state.reviews.get(author.id);
+      const review = await loadJson(author.reviewPath);
+      state.reviews.set(author.id, review);
+      state.accepted.set(author.id, new Set((review.concepts || []).filter((item) => item.review_decision === "accept").map((item) => item.id)));
+      return review;
+    }
+
+    function selectedSet() {
+      if (!state.accepted.has(state.selected.id)) state.accepted.set(state.selected.id, new Set());
+      return state.accepted.get(state.selected.id);
     }
 
     function renderAuthorList() {
@@ -356,41 +443,144 @@
       });
     }
 
-    function renderMeta(author, manifest) {
-      const coverage = manifest.coverage || {};
-      const counts = manifest.counts || {};
-      authorTitle.textContent = author.name;
-      authorDescription.innerHTML = [
-        `${escapeHtml(author.note)}。`,
-        `覆盖：${escapeHtml(formatDate(coverage.first_created_at))} 至 ${escapeHtml(formatDate(coverage.last_created_at))}。`,
-        coverage.limitation ? `<span class="notice">${escapeHtml(localizeLimitation(coverage.limitation))}</span>` : ""
-      ].filter(Boolean).join(" ");
+    function qualityChip(concept) {
+      const status = concept.quality && concept.quality.status;
+      const support = concept.quality && concept.quality.support_count;
+      if (status === "pass") return `<span class="chip ok">pass · ${escapeHtml(support)}</span>`;
+      return `<span class="chip bad">fail · ${escapeHtml(support || 0)}</span>`;
+    }
 
+    function renderMeta(author, manifest, review) {
+      const counts = manifest.counts || {};
+      const concepts = review.concepts || [];
+      const acceptedCount = selectedSet().size;
+      const passCount = concepts.filter((item) => item.quality && item.quality.status === "pass").length;
+      authorTitle.textContent = author.name;
+      authorDescription.textContent = author.note;
       stats.innerHTML = [
-        ["微博", coverage.rows || 0],
-        ["判断单元", counts.judgment_units || 0],
-        ["模型", counts.mental_models || 0],
-        ["作者", manifest.author_handle || author.handle]
-      ].map(([label, value]) => `<span class="chip">${escapeHtml(label)}：${escapeHtml(value)}</span>`).join("");
+        ["候选", concepts.length, ""],
+        ["Quality Pass", passCount, "ok"],
+        ["已勾选", acceptedCount, acceptedCount ? "ok" : "warn"],
+        ["已入库", counts.concepts || 0, ""]
+      ].map(([label, value, kind]) => `<span class="chip ${kind}">${escapeHtml(label)}：${escapeHtml(value)}</span>`).join("");
+    }
+
+    function conceptText(concept) {
+      const triggers = (concept.trigger_conditions || []).slice(0, 2).join("；");
+      const boundaries = (concept.boundary_conditions || []).slice(0, 2).join("；");
+      const aliases = (concept.aliases || []).slice(0, 6).join("、");
+      return [
+        aliases ? `别名：${aliases}` : "",
+        triggers ? `触发：${triggers}` : "",
+        boundaries ? `边界：${boundaries}` : ""
+      ].filter(Boolean).join(" ｜ ");
+    }
+
+    function renderConcepts(review) {
+      const concepts = review.concepts || [];
+      if (!concepts.length) {
+        conceptList.innerHTML = "<div class=\"empty\">没有可打标的候选 Concepts。</div>";
+        return;
+      }
+      const accepted = selectedSet();
+      conceptList.innerHTML = concepts.map((concept) => {
+        const checked = accepted.has(concept.id);
+        return `
+          <label class="concept-row ${checked ? "accepted" : ""}" data-concept="${escapeHtml(concept.id)}">
+            <input type="checkbox" ${checked ? "checked" : ""} aria-label="accept ${escapeHtml(concept.name)}">
+            <div>
+              <h3 class="concept-title">${escapeHtml(concept.name || concept.id)}</h3>
+              <div class="concept-summary">${escapeHtml(conceptText(concept))}</div>
+            </div>
+            <div class="concept-meta">
+              ${qualityChip(concept)}
+              <span class="chip">${escapeHtml(concept.discovery_source || "unknown")}</span>
+              <span class="chip">${escapeHtml((concept.domains || []).join(" / ") || "no-domain")}</span>
+            </div>
+          </label>
+        `;
+      }).join("");
+
+      conceptList.querySelectorAll(".concept-row").forEach((row) => {
+        const checkbox = row.querySelector("input");
+        checkbox.addEventListener("change", () => {
+          if (checkbox.checked) accepted.add(row.dataset.concept);
+          else accepted.delete(row.dataset.concept);
+          row.classList.toggle("accepted", checkbox.checked);
+          renderMeta(state.selected, state.manifests.get(state.selected.id), state.reviews.get(state.selected.id));
+        });
+      });
     }
 
     async function selectAuthor(author) {
       state.selected = author;
       renderAuthorList();
+      openPackage.href = `${author.packagePath}index.html`;
       authorTitle.textContent = author.name;
-      authorDescription.textContent = "正在读取作者 package。";
+      authorDescription.textContent = "正在读取候选 Concepts。";
       stats.innerHTML = "";
-      authorFrame.removeAttribute("src");
-      openCurrent.href = `${author.packagePath}index.html`;
+      conceptList.innerHTML = "<div class=\"empty\">加载中。</div>";
+      setStatus("正在加载。");
 
       try {
-        const manifest = await loadManifest(author);
-        renderMeta(author, manifest);
-        authorFrame.src = `${author.packagePath}index.html`;
+        const [manifest, review] = await Promise.all([loadManifest(author), loadReview(author)]);
+        renderMeta(author, manifest, review);
+        renderConcepts(review);
+        setStatus("已加载。勾选后点击提交并融合。", "ok");
       } catch (error) {
-        authorDescription.innerHTML = `<span class="notice">${escapeHtml(error.message || error)}</span>`;
+        conceptList.innerHTML = `<div class="empty">${escapeHtml(error.message || error)}</div>`;
+        setStatus("加载失败。", "bad");
       }
     }
+
+    selectPass.addEventListener("click", () => {
+      const review = state.reviews.get(state.selected.id);
+      if (!review) return;
+      const accepted = selectedSet();
+      (review.concepts || []).forEach((concept) => {
+        if (concept.quality && concept.quality.status === "pass") accepted.add(concept.id);
+      });
+      renderMeta(state.selected, state.manifests.get(state.selected.id), review);
+      renderConcepts(review);
+    });
+
+    clearAll.addEventListener("click", () => {
+      selectedSet().clear();
+      const review = state.reviews.get(state.selected.id);
+      renderMeta(state.selected, state.manifests.get(state.selected.id), review);
+      renderConcepts(review);
+    });
+
+    submitAccept.addEventListener("click", async () => {
+      const acceptedIds = Array.from(selectedSet());
+      submitAccept.disabled = true;
+      setStatus(`正在提交 ${acceptedIds.length} 个 Concepts。`);
+      try {
+        const response = await fetch("/api/concepts/apply", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ authorId: state.selected.id, acceptedIds })
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "提交失败");
+        state.manifests.delete(state.selected.id);
+        state.reviews.delete(state.selected.id);
+        await selectAuthor(state.selected);
+        setStatus(`已融合：${result.profile_concepts} 个 Concepts 已在系统中。`, "ok");
+      } catch (error) {
+        setStatus(`提交失败：${error.message || error}。请使用 node scripts/concept-review-server.js 启动本地写入服务。`, "bad");
+      } finally {
+        submitAccept.disabled = false;
+      }
+    });
+
+    fetch("/api/health", { cache: "no-store" })
+      .then((response) => {
+        if (!response.ok) throw new Error("not writable");
+      })
+      .catch(() => {
+        setStatus("当前可能是静态 http.server；提交需要运行 node scripts/concept-review-server.js。", "warn");
+      });
 
     renderAuthorList();
     selectAuthor(state.selected);

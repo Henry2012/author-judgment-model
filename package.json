@@ -5,6 +5,7 @@
   "type": "commonjs",
   "scripts": {
     "test": "node --test tests/*.test.js",
+    "concept-review": "node scripts/concept-review-server.js",
     "build:weibo:sanshu": "node scripts/ajm.js build-weibo --raw ./examples/weibo-2611641261/raw-index.json --author-id 2611641261 --author-handle sanshu --out data"
   },
   "engines": {
