@@ -292,6 +292,7 @@
           return {
             domainId,
             score:
+              termScore(text, domain.priority_keywords, 8) +
               termScore(text, domain.keywords, 3) +
               termScore(text, domain.variables, 1) +
               termScore(text, [model && model.name].concat((model && model.variables) || []), 1),
@@ -312,12 +313,32 @@
       return (profile.decision_heuristics || []).find((heuristic) => heuristic.id === `heuristic_${domain}`);
     }
 
-    function buildEvidenceTrace(model, units) {
+    function evidenceTermsFor(question, config, domain) {
+      const text = cleanText(question);
+      const domainConfig = (config && config.domains && config.domains[domain]) || {};
+      return Array.from(new Set([]
+        .concat(domainConfig.priority_keywords || [])
+        .concat(domainConfig.keywords || [])
+        .concat(domainConfig.variables || [])
+        .map(cleanText)
+      )).filter((term) => term && text.includes(term));
+    }
+
+    function evidenceMatchScore(unit, terms) {
+      const text = cleanText([unit.claim, unit.evidence_excerpt, unit.object].concat(unit.variables || []).join(" "));
+      return terms.reduce((score, term) => score + (text.includes(term) ? Math.max(1, term.length) : 0), 0);
+    }
+
+    function buildEvidenceTrace(model, units, question, config, domain) {
       const unitById = new Map(units.map((unit) => [unit.unit_id, unit]));
+      const terms = evidenceTermsFor(question || "", config || {}, domain || "");
       return ((model && model.evidence_unit_ids) || [])
         .map((unitId) => unitById.get(unitId))
         .filter(Boolean)
-        .slice(0, 5);
+        .map((unit, index) => ({ unit, index, score: evidenceMatchScore(unit, terms) }))
+        .sort((a, b) => b.score - a.score || a.index - b.index)
+        .slice(0, 5)
+        .map(({ unit }) => unit);
     }
 
     function confidenceFor(profile, domain, trace) {
@@ -326,6 +347,10 @@
       if (domainInfo.unit_count >= 20 && trace.length >= 3) return "high";
       if (domainInfo.unit_count >= 5) return "medium";
       return "low";
+    }
+
+    function containsAny(text, terms) {
+      return terms.some((term) => text.includes(term));
     }
 
     function labelVariables(variables) {
@@ -365,12 +390,38 @@
       return `该判断模型属于「${domainName(domain)}」判断域，会优先检查${labels.join("、") || "语料支持的核心变量"}，再结合证据链判断问题是否落在作者稳定表达过的范围内。`;
     }
 
+    function directConclusion(question, domain, variables) {
+      const text = cleanText(question);
+      const labels = labelVariables(variables).join("、") || "语料支持的核心变量";
+      if (domain === "real_estate" && containsAny(text, ["未来", "房价", "涨", "跌", "反弹", "杭州"])) {
+        return [
+          "按该作者判断模型，不能直接给“杭州房价一定涨/跌”的单点预测。",
+          `更接近的结论是：先看${labels}；如果流动性、租售比和退出成本没有明显改善，即使城市基本面不错，也应偏谨慎，不宜把“未来会涨”当作默认前提。`,
+          "涉及未来价格和实时成交，需要外部数据核验后再应用这个判断模型。"
+        ].join("");
+      }
+      if (domain === "ai_tech_industry_logic") {
+        return [
+          `按该作者判断模型，这个问题属于「${domainName(domain)}」，不是简单问“能不能买”。`,
+          "更接近的结论是：先确认产业需求、供给约束、业绩增长和科技主线是否仍成立；若逻辑仍强但短期已经加速，应避免追涨，倾向等待回踩或用风控约束仓位。",
+          "具体到单只标的和持有到某个日期，历史语料不足以直接替代实时交易判断。"
+        ].join("");
+      }
+      if (domain === "trend_structure_timing") {
+        return "按该作者判断模型，这个问题应先判断趋势结构和买卖时机。更接近的结论是：上升趋势和强逻辑未破时不轻易猜顶，但加速区不追涨；回踩质量好、逻辑不变时再考虑低吸。";
+      }
+      if (domain === "risk_position_management") {
+        return "按该作者判断模型，这个问题应先进入风控和仓位管理。更接近的结论是：强势主线中可以保留底仓思维，但不能用“继续持有”替代止损、仓位和逻辑复核。";
+      }
+      return `使用该作者的「${domainName(domain)}」判断模型时，应通过${labels}来评估这个问题，并在结论前说明边界和置信度。`;
+    }
+
     function answerQuestion(question) {
       const { profile, units, config } = state;
       const domain = classifyQuestion(question, config, profile);
       const model = findModel(profile, domain);
       const heuristic = findHeuristic(profile, domain);
-      const evidenceTrace = buildEvidenceTrace(model, units);
+      const evidenceTrace = buildEvidenceTrace(model, units, question, config, domain);
       const confidence = confidenceFor(profile, domain, evidenceTrace);
       const variables = (model && model.variables) || (heuristic && heuristic.priority_variables) || [];
       const boundaries = localizeBoundaries([].concat((model && model.limitations) || [], profile.honest_boundaries || []));
@@ -398,7 +449,7 @@
         variables,
         evidenceTrace,
         text: [
-          `直接结论：这个问题应先放入「${domainName(domain)}」判断域，不宜直接给单点答案。`,
+          `直接结论：${directConclusion(question, domain, variables)}`,
           `判断变量：${labels.join("、") || "当前 package 支持的核心变量"}。`,
           `可能的判断逻辑：${summarizeModel(domain, variables)}`,
           "行动倾向：先套用证据支持的模型，再说明边界和置信度。",

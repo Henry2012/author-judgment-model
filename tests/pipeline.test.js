@@ -918,6 +918,79 @@ test("answers a question through a generated author judgment profile", () => {
   assert.equal(answer.boundaries_and_confidence.confidence_label, "低");
 });
 
+test("gives directional real-estate conclusions without claiming future facts", () => {
+  const posts = normalizeWeiboRaw(sampleRaw(), { authorHandle: "sample" });
+  const units = extractJudgmentUnits(posts, config);
+  const maps = buildEvidenceMaps(units, config);
+  const profile = buildProfile(posts, units, maps, config, { authorHandle: "sample" }, sampleRaw());
+
+  const answer = answerQuestion({
+    question: "未来杭州的房价会如何？",
+    profile,
+    units,
+    config
+  });
+
+  assert.equal(answer.question_classification, "real_estate");
+  assert.ok(answer.direct_answer.includes("不能直接给"));
+  assert.ok(answer.direct_answer.includes("偏谨慎"));
+  assert.ok(answer.direct_answer.includes("实时成交"));
+});
+
+test("classifies optical sector trading questions as covered for trader configs", () => {
+  const traderConfig = require("../configs/weibo-1357064103.jianfang.json");
+  const raw = {
+    collectedAt: "2026-06-21T00:00:00.000Z",
+    target: "https://weibo.com/u/1357064103",
+    rows: [
+      {
+        id: "T1",
+        bid: "T1",
+        created_at: "2026-05-30 15:00",
+        text: "易中天今天再次同时创历史新高。很多人认为是抱团，但要看光通信和算力主线的产业逻辑是否继续成立。",
+        url: "https://weibo.com/1357064103/T1"
+      },
+      {
+        id: "T2",
+        bid: "T2",
+        created_at: "2026-05-31 10:00",
+        text: "强逻辑和上升趋势中不要轻易猜顶，但加速区不要追涨，回踩时再看低吸机会。",
+        url: "https://weibo.com/1357064103/T2"
+      },
+      {
+        id: "T3",
+        bid: "T3",
+        created_at: "2026-05-31 11:00",
+        text: "仓位和止损必须放在前面，不能用继续持有替代风控。",
+        url: "https://weibo.com/1357064103/T3"
+      }
+    ]
+  };
+  const posts = normalizeWeiboRaw(raw, { authorHandle: "trader-jianfang" });
+  const units = extractJudgmentUnits(posts, traderConfig);
+  const maps = buildEvidenceMaps(units, traderConfig);
+  const profile = buildProfile(posts, units, maps, traderConfig, { authorHandle: "trader-jianfang" }, raw);
+
+  const specificAnswer = answerQuestion({
+    question: "光板块的易中天3只标的还能继续买，并持有到7月底吗？",
+    profile,
+    units,
+    config: traderConfig
+  });
+  const broadAnswer = answerQuestion({
+    question: "光板块还能继续买吗？",
+    profile,
+    units,
+    config: traderConfig
+  });
+
+  assert.equal(specificAnswer.question_classification, "ai_tech_industry_logic");
+  assert.equal(broadAnswer.question_classification, "ai_tech_industry_logic");
+  assert.ok(specificAnswer.direct_answer.includes("不是简单问“能不能买”"));
+  assert.ok(specificAnswer.direct_answer.includes("实时交易判断"));
+  assert.ok(specificAnswer.evidence_trace.some((item) => item.evidence_excerpt.includes("易中天") || item.evidence_excerpt.includes("光通信")));
+});
+
 test("refuses unsupported questions instead of defaulting to the largest domain", () => {
   const posts = normalizeWeiboRaw(sampleRaw(), { authorHandle: "sample" });
   const units = extractJudgmentUnits(posts, config);
