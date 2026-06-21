@@ -1916,6 +1916,92 @@ test("splits broad trading structure into stable domain concepts", () => {
   assert.ok(result.candidates.every((candidate) => candidate.quality.status === "pass"));
 });
 
+test("splits Weibo trader concepts by market, timing, risk, industry, psychology, and intraday domains", () => {
+  const domainSpecs = [
+    {
+      domain: "market_regime_mainline",
+      object: "市场状态与主线方向",
+      claim: "市场强弱和主线清晰度决定是否做大波段或等待。",
+      variables: ["market_regime", "mainline_clarity", "sector_leadership", "risk_reward"],
+      trigger: "问题询问市场主线、方向、强弱或是否值得参与",
+      boundary: "主线不清或市场弱势时不能到处乱做",
+      counterexample: "只有短线反弹但没有主线确认时不适用"
+    },
+    {
+      domain: "trend_structure_timing",
+      object: "趋势结构与买卖时机",
+      claim: "交易时机要看趋势、回踩质量和是否处在加速区。",
+      variables: ["trend_direction", "pullback_quality", "acceleration_phase", "entry_timing"],
+      trigger: "问题询问还能不能买、低吸、追涨或持有到某个日期",
+      boundary: "加速区不能无脑追涨",
+      counterexample: "趋势失效或没有回踩质量时不适用"
+    },
+    {
+      domain: "risk_position_management",
+      object: "风险控制与仓位管理",
+      claim: "风控要看止损、止盈、仓位、底仓和持有周期。",
+      variables: ["stop_loss", "position_size", "core_position", "loss_control"],
+      trigger: "问题询问仓位、止损、止盈、底仓或是否继续持有",
+      boundary: "不能替代个人交易计划和实时行情",
+      counterexample: "没有止损计划或仓位约束时不适用"
+    },
+    {
+      domain: "ai_tech_industry_logic",
+      object: "人工智能科技产业逻辑",
+      claim: "AI、算力、光模块、光通信和半导体要看全球需求和业绩兑现。",
+      variables: ["industry_demand", "global_cycle", "supply_constraint", "earnings_growth"],
+      trigger: "问题询问 AI、算力、光模块、光通信或半导体产业主线",
+      boundary: "不能把题材热度直接等同于产业逻辑",
+      counterexample: "只问照明、摄影或普通光学物理时不适用"
+    },
+    {
+      domain: "trading_psychology_execution",
+      object: "交易心理与执行纪律",
+      claim: "交易心理强调认知开放、执行纪律和控制贪婪恐惧。",
+      variables: ["emotional_state", "execution_discipline", "cognitive_openness", "patience"],
+      trigger: "问题询问交易心态、执行力、恐惧、贪婪或怀疑逻辑",
+      boundary: "不能用情绪替代交易系统和证据",
+      counterexample: "没有交易决策或执行语境时不适用"
+    },
+    {
+      domain: "intraday_market_reading",
+      object: "盘中观察与短线反馈",
+      claim: "盘中观察通过指数、成交量、补量和主线反馈确认短线状态。",
+      variables: ["intraday_strength", "volume_confirmation", "index_feedback", "market_breadth"],
+      trigger: "问题询问今日看盘、早盘、尾盘、成交量、补量或盘中反馈",
+      boundary: "盘中信号不能脱离更大趋势和产业逻辑",
+      counterexample: "没有盘面反馈或成交量确认时不适用"
+    }
+  ];
+  const units = domainSpecs.flatMap((spec, specIndex) =>
+    [0, 1, 2].map((itemIndex) => ({
+      unit_id: `weibo_trader_unit_${String(specIndex).padStart(2, "0")}_${itemIndex}`,
+      source_post_id: `W${specIndex}_${itemIndex}`,
+      created_at: "2026-06-01",
+      domain: spec.domain,
+      claim: `${spec.claim} 第${itemIndex + 1}次证据。`,
+      object: spec.object,
+      variables: spec.variables,
+      trigger_conditions: [spec.trigger],
+      boundary_conditions: [spec.boundary],
+      counterexamples: [spec.counterexample],
+      confidence: "high",
+      evidence_strength: "direct",
+      evidence_excerpt: `${spec.claim} ${spec.boundary}`
+    }))
+  );
+
+  const result = discoverConceptCandidates({ units, minEvidenceUnits: 3, strategy: "trading" });
+  const ids = result.candidates.map((candidate) => candidate.id);
+
+  assert.ok(ids.includes("market_regime_mainline_direction"));
+  assert.ok(ids.includes("trend_structure_entry_timing"));
+  assert.ok(ids.includes("risk_position_stop_loss_discipline"));
+  assert.ok(ids.includes("ai_tech_industry_logic_chain"));
+  assert.ok(ids.includes("trading_psychology_execution_discipline"));
+  assert.ok(ids.includes("intraday_market_feedback"));
+});
+
 test("exports concept review pack and applies accepted concepts to profile", () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "ajm-concepts-"));
   const profilePath = path.join(tmp, "author-judgment-profile.json");

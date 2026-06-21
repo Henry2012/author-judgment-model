@@ -288,6 +288,60 @@ const tradingDomainConcepts = {
     trigger: "问题询问中国资产、港股中概、关税、出口管制、地缘政策或估值折价。",
     boundary: "不能把单条谈判消息或政策传闻直接当成政策方向变化，必须拆开政策路径、贸易限制、需求和估值折价。",
     counterexample: "没有政策路径、出口限制影响或估值折价判断时不应套用。"
+  },
+  market_regime_mainline: {
+    id: "market_regime_mainline_direction",
+    name: "市场状态 / 主线方向",
+    aliases: ["市场", "大盘", "主线", "方向", "强势", "弱势", "时代", "风险收益", "板块主线"],
+    required_variables: ["market_regime", "mainline_clarity", "index_strength", "sector_leadership", "risk_reward"],
+    trigger: "问题询问市场强弱、主线方向、板块是否仍是主线或当前是否值得参与。",
+    boundary: "不能只因短线反弹就判定主线成立，主线不清或市场弱势时应降低确定性和交易频率。",
+    counterexample: "只有短线反弹、缺少板块领导力和市场强度确认时不应套用。"
+  },
+  trend_structure_timing: {
+    id: "trend_structure_entry_timing",
+    name: "趋势结构 / 买卖时机",
+    aliases: ["趋势", "回踩", "低吸", "追涨", "加速区", "调整", "反弹", "反包", "继续买", "持有到", "7月底"],
+    required_variables: ["trend_direction", "pullback_quality", "acceleration_phase", "entry_timing", "chase_risk"],
+    trigger: "问题询问还能不能买、继续买、低吸、追涨、持有到某个日期或趋势结构是否仍健康。",
+    boundary: "不能脱离趋势结构和回踩质量给买卖结论，处在加速区或情绪过热时必须先提示追涨风险。",
+    counterexample: "趋势已经失效、没有回踩质量或只是情绪冲高时不应套用。"
+  },
+  risk_position_management: {
+    id: "risk_position_stop_loss_discipline",
+    name: "风险控制 / 仓位纪律",
+    aliases: ["风控", "仓位", "底仓", "止损", "止盈", "减仓", "持仓", "大亏", "亏损", "波段"],
+    required_variables: ["stop_loss", "position_size", "core_position", "loss_control", "holding_period"],
+    trigger: "问题询问仓位、底仓、止损、止盈、减仓、亏损控制或是否继续持有。",
+    boundary: "不能替代个人交易计划和实时行情，未明确仓位、止损和持有周期时不能给确定性买卖结论。",
+    counterexample: "没有止损计划、仓位约束或风险承受能力说明时不应套用。"
+  },
+  ai_tech_industry_logic: {
+    id: "ai_tech_industry_logic_chain",
+    name: "AI 科技 / 产业逻辑链",
+    aliases: ["AI", "人工智能", "科技", "算力", "光", "光板块", "光模块", "光通信", "CPO", "易中天", "芯片", "半导体", "存储"],
+    required_variables: ["industry_demand", "global_cycle", "supply_constraint", "earnings_growth", "technology_mainline"],
+    trigger: "问题询问 AI、算力、光模块、光通信、易中天、半导体或科技产业链是否仍有主线逻辑。",
+    boundary: "不能把题材热度直接等同于产业逻辑，必须结合全球需求、供给约束、业绩兑现和科技主线强度。",
+    counterexample: "只问光学物理、照明、摄影，或缺少产业需求和业绩证据时不应套用。"
+  },
+  trading_psychology_execution: {
+    id: "trading_psychology_execution_discipline",
+    name: "交易心理 / 执行纪律",
+    aliases: ["心态", "情绪", "认知", "执行力", "怀疑", "埋怨", "贪婪", "恐惧", "开放", "封闭", "纪律"],
+    required_variables: ["emotional_state", "execution_discipline", "cognitive_openness", "patience", "greed_fear_balance"],
+    trigger: "问题询问交易心态、执行纪律、认知开放、恐惧贪婪或短期波动后是否怀疑逻辑。",
+    boundary: "不能用情绪替代交易系统和证据，心理判断必须回到执行纪律、耐心和风险控制。",
+    counterexample: "没有交易决策、执行动作或情绪干扰语境时不应套用。"
+  },
+  intraday_market_reading: {
+    id: "intraday_market_feedback",
+    name: "盘中观察 / 短线反馈",
+    aliases: ["今日看盘", "看盘", "早盘", "上午", "下午", "尾盘", "成交量", "补量", "指数", "开盘", "盘中"],
+    required_variables: ["intraday_strength", "volume_confirmation", "index_feedback", "market_breadth", "short_term_signal"],
+    trigger: "问题询问今日看盘、早盘、尾盘、成交量、补量、指数反馈或盘中短线状态。",
+    boundary: "盘中信号不能脱离更大趋势、主线逻辑和成交量确认，短线反馈不能直接外推为长期判断。",
+    counterexample: "没有盘面反馈、成交量确认或主线联动时不应套用。"
   }
 };
 
