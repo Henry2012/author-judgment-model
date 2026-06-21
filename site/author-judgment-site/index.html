@@ -117,9 +117,14 @@
 
     .author-button {
       width: 100%;
+      display: block;
+      min-height: auto;
       text-align: left;
       background: var(--surface);
       padding: 14px;
+      white-space: normal;
+      line-height: 1.35;
+      justify-content: initial;
     }
 
     .author-button[aria-selected="true"] {
@@ -367,6 +372,14 @@
         packagePath: "../weibo-1357064103-pruned/package/",
         reviewPath: "../weibo-1357064103-pruned/review/concepts/concept-review-template.json",
         note: "市场主线、趋势结构、风控与科技产业判断模型"
+      },
+      {
+        id: "tj_research",
+        name: "投资TALK君",
+        handle: "TJ_Research",
+        packagePath: "../x-tj-research-pruned/package/",
+        reviewPath: "../x-tj-research-pruned/review/concepts/concept-review-template.json",
+        note: "美股、AI、宏观、组合风控判断模型"
       }
     ];
 

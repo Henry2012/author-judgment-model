@@ -23,6 +23,14 @@ const authors = {
     unitsPath: "dist/weibo-1357064103-pruned/pruned-judgment-units.json",
     configPath: "configs/weibo-1357064103.jianfang.json",
     packageDir: "dist/weibo-1357064103-pruned/package"
+  },
+  tj_research: {
+    name: "投资TALK君",
+    reviewPath: "dist/x-tj-research-pruned/review/concepts/concept-review-template.json",
+    profilePath: "dist/x-tj-research-pruned/data/profiles/x-1620475218627121153/author-judgment-profile.json",
+    unitsPath: "dist/x-tj-research-pruned/pruned-judgment-units.json",
+    configPath: "configs/x-tj-research.json",
+    packageDir: "dist/x-tj-research-pruned/package"
   }
 };
 

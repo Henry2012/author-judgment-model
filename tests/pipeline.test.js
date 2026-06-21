@@ -5,6 +5,7 @@ const path = require("node:path");
 const test = require("node:test");
 const {
   normalizeWeiboRaw,
+  normalizeXRaw,
   extractJudgmentUnits,
   buildEvidenceMaps,
   buildProfile,
@@ -126,6 +127,48 @@ test("normalizes Weibo raw rows into canonical posts", () => {
   assert.equal(posts[0].engagement.likes, 10);
 });
 
+test("normalizes X raw tweets into canonical posts", () => {
+  const raw = {
+    source: "twitterapi.io",
+    account: "TJ_Research",
+    user_id: "1620475218627121153",
+    user_name: "投资TALK君",
+    fetched_at_utc: "2026-06-14T08:45:13.434045+00:00",
+    cutoff_utc: "2025-06-14T00:00:00+00:00",
+    until_utc: "2026-06-14T00:00:00+00:00",
+    tweets: [
+      {
+        id: "2065588508153065544",
+        url: "https://x.com/TJ_Research/status/2065588508153065544",
+        text: "AI算力和电力约束仍然是重要主线。",
+        createdAt: "Sat Jun 13 00:14:11 +0000 2026",
+        likeCount: 10,
+        replyCount: 2,
+        retweetCount: 3,
+        quoteCount: 1,
+        viewCount: 1000,
+        isReply: false,
+        author: {
+          id: "1620475218627121153",
+          userName: "TJ_Research",
+          name: "投资TALK君"
+        }
+      }
+    ]
+  };
+
+  const posts = normalizeXRaw(raw);
+
+  assert.equal(posts.length, 1);
+  assert.equal(posts[0].platform, "x");
+  assert.equal(posts[0].author_id, "1620475218627121153");
+  assert.equal(posts[0].author_handle, "TJ_Research");
+  assert.equal(posts[0].created_at, "2026-06-13T00:14:11.000Z");
+  assert.equal(posts[0].engagement.likes, 10);
+  assert.equal(posts[0].engagement.reposts, 4);
+  assert.equal(posts[0].capture.coverage_note, "2025-06-14T00:00:00+00:00 to 2026-06-14T00:00:00+00:00");
+});
+
 test("extracts evidence-backed judgment units and maps from posts", () => {
   const posts = normalizeWeiboRaw(sampleRaw(), { authorHandle: "sample" });
   const units = extractJudgmentUnits(posts, config);
@@ -137,6 +180,58 @@ test("extracts evidence-backed judgment units and maps from posts", () => {
   assert.ok(maps.some((map) => map.domain === "real_estate"));
   assert.equal(profile.profile_id, "weibo-123456");
   assert.ok(profile.mental_models.length >= 1);
+});
+
+test("runs pipeline for X raw tweets without labeling the profile as weibo", () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "ajm-x-"));
+  const rawPath = path.join(tmp, "tj-research.json");
+  const configPath = path.join(tmp, "x.config.json");
+  const raw = {
+    source: "twitterapi.io",
+    account: "TJ_Research",
+    user_id: "1620475218627121153",
+    user_name: "投资TALK君",
+    tweets: [
+      {
+        id: "T1",
+        url: "https://x.com/TJ_Research/status/T1",
+        text: "AI算力、电力和半导体资本开支是重要主线，需要结合估值和风险。",
+        createdAt: "Sat Jun 13 00:14:11 +0000 2026",
+        likeCount: 10,
+        replyCount: 2,
+        retweetCount: 3,
+        quoteCount: 1,
+        author: { id: "1620475218627121153", userName: "TJ_Research" }
+      }
+    ]
+  };
+  const xConfig = {
+    version: "0.1.0",
+    platform: "x",
+    domains: {
+      ai_semis_infrastructure: {
+        name: "AI / 半导体 / 基础设施",
+        keywords: ["AI", "算力", "电力", "半导体", "资本开支"],
+        variables: ["ai_demand", "power_constraint", "capex_cycle", "valuation", "risk_reward"],
+        model_template: "围绕 AI 需求、算力基础设施、电力约束、资本开支和估值风险判断产业机会。"
+      }
+    },
+    anti_pattern_keywords: {}
+  };
+  fs.writeFileSync(rawPath, JSON.stringify(raw, null, 2));
+  fs.writeFileSync(configPath, JSON.stringify(xConfig, null, 2));
+
+  const result = runPipeline({
+    rawPath,
+    outDir: tmp,
+    configPath
+  });
+  const profile = JSON.parse(fs.readFileSync(result.profilePath, "utf8"));
+
+  assert.equal(result.slug, "x-1620475218627121153");
+  assert.equal(profile.platform, "x");
+  assert.equal(profile.profile_id, "x-1620475218627121153");
+  assert.equal(profile.coverage_summary.source_target, "https://x.com/TJ_Research");
 });
 
 test("runs the Weibo AJM pipeline and writes reusable artifacts", () => {

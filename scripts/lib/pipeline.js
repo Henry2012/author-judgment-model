@@ -25,9 +25,18 @@ function sourceExcerpt(value, max = 260) {
 
 function inferAuthorId(raw, row, explicitAuthorId) {
   if (explicitAuthorId) return String(explicitAuthorId);
+  if (raw.user_id) return String(raw.user_id);
+  if (row.author?.id) return String(row.author.id);
   const target = String(raw.target || row.capture_url || row.url || "");
   const match = target.match(/(?:\/u\/|weibo\.com\/)(\d+)/);
   return match ? match[1] : "unknown-author";
+}
+
+function inferPlatform(raw, config = {}, options = {}) {
+  if (options.platform) return String(options.platform);
+  if (config.platform) return String(config.platform);
+  if (Array.isArray(raw.tweets)) return "x";
+  return "weibo";
 }
 
 function normalizeDate(value) {
@@ -38,6 +47,8 @@ function normalizeDate(value) {
   if (match) {
     return `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:00+08:00`;
   }
+  const date = new Date(text);
+  if (!Number.isNaN(date.getTime())) return date.toISOString();
   return text;
 }
 
@@ -73,6 +84,55 @@ function normalizeWeiboRaw(raw, options = {}) {
         method: row.capture_method || raw.capture_method || "unknown",
         capture_url: row.capture_url || raw.target || "",
         coverage_note: raw.coverage_note || ""
+      }
+    });
+  }
+
+  return posts.sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
+}
+
+function normalizeXRaw(raw, options = {}) {
+  const rows = Array.isArray(raw.tweets) ? raw.tweets : [];
+  const seen = new Set();
+  const posts = [];
+
+  for (const row of rows) {
+    const postId = String(row.id || row.tweet_id || "").trim();
+    const text = cleanText(row.text || row.full_text);
+    if (!postId || !text || seen.has(postId)) continue;
+    seen.add(postId);
+
+    const authorId = inferAuthorId(raw, row, options.authorId);
+    const authorHandle = options.authorHandle || raw.account || row.author?.userName || row.userName || "";
+    const contextText = cleanText(
+      [
+        row.quoted_tweet?.text,
+        row.retweeted_tweet?.text,
+        row.inReplyToUsername ? `reply_to:${row.inReplyToUsername}` : ""
+      ].join(" ")
+    );
+    posts.push({
+      platform: "x",
+      author_id: authorId,
+      author_handle: authorHandle,
+      post_id: postId,
+      created_at: normalizeDate(row.createdAt || row.created_at),
+      text,
+      post_type: row.retweeted_tweet ? "repost" : row.quoted_tweet ? "quote" : row.isReply ? "reply" : "original",
+      context_text: contextText,
+      url: row.url || row.twitterUrl || (authorHandle ? `https://x.com/${authorHandle}/status/${postId}` : ""),
+      engagement: {
+        likes: Number(row.likeCount || row.likes || 0),
+        comments: Number(row.replyCount || row.replies || 0),
+        reposts: Number(row.retweetCount || 0) + Number(row.quoteCount || 0),
+        views: Number(row.viewCount || 0),
+        bookmarks: Number(row.bookmarkCount || 0)
+      },
+      capture: {
+        captured_at: raw.fetched_at_utc || raw.collectedAt || new Date().toISOString(),
+        method: raw.method || raw.source || "unknown",
+        capture_url: raw.query || raw.target || (authorHandle ? `https://x.com/${authorHandle}` : ""),
+        coverage_note: [raw.cutoff_utc, raw.until_utc].filter(Boolean).join(" to ")
       }
     });
   }
@@ -227,14 +287,15 @@ function coverageSummary(posts, raw) {
     rows: posts.length,
     first_created_at: dates[0] || "",
     last_created_at: dates[dates.length - 1] || "",
-    source_target: raw.target || "",
-    limitation: raw.coverage_note || "Coverage depends on the supplied Weibo raw corpus."
+    source_target: raw.target || raw.query || (posts[0]?.author_handle ? `https://x.com/${posts[0].author_handle}` : ""),
+    limitation: raw.coverage_note || "Coverage depends on the supplied source corpus."
   };
 }
 
 function buildProfile(posts, units, evidenceMaps, config, options = {}, raw = {}) {
   const byDomain = groupBy(units, (unit) => unit.domain);
-  const profileId = `weibo-${options.authorId || posts[0]?.author_id || "unknown-author"}`;
+  const platform = inferPlatform(raw, config, options);
+  const profileId = `${platform}-${options.authorId || posts[0]?.author_id || "unknown-author"}`;
   const domainMap = Object.fromEntries(
     Object.entries(byDomain).map(([domainId, domainUnits]) => [
       domainId,
@@ -297,7 +358,7 @@ function buildProfile(posts, units, evidenceMaps, config, options = {}, raw = {}
 
   return {
     profile_id: profileId,
-    platform: "weibo",
+    platform,
     author_id: options.authorId || posts[0]?.author_id || "unknown-author",
     author_handle: options.authorHandle || posts[0]?.author_handle || "",
     coverage_summary: coverageSummary(posts, raw),
@@ -307,7 +368,7 @@ function buildProfile(posts, units, evidenceMaps, config, options = {}, raw = {}
     decision_heuristics: decisionHeuristics,
     anti_patterns: antiPatterns,
     honest_boundaries: [
-      "The profile is derived from the supplied Weibo corpus only.",
+      "The profile is derived from the supplied source corpus only.",
       "The model must not imitate tone, catchphrases, emoji habits, or persona.",
       "Unsupported topics should be answered with low confidence or refused."
     ],
@@ -342,7 +403,8 @@ function runPipeline(options) {
   const configPath = options.configPath || path.join(process.cwd(), "configs/weibo.default.json");
   const config = readJson(configPath);
   const raw = readJson(options.rawPath);
-  const posts = normalizeWeiboRaw(raw, options);
+  const platform = inferPlatform(raw, config, options);
+  const posts = platform === "x" ? normalizeXRaw(raw, options) : normalizeWeiboRaw(raw, options);
   const units = extractJudgmentUnits(posts, config);
   const evidenceMaps = buildEvidenceMaps(units, config);
   const profile = buildProfile(posts, units, evidenceMaps, config, options, raw);
@@ -404,6 +466,7 @@ function buildArtifactsFromUnits(options) {
 
 module.exports = {
   normalizeWeiboRaw,
+  normalizeXRaw,
   extractJudgmentUnits,
   buildEvidenceMaps,
   buildProfile,
