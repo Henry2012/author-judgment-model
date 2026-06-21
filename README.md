@@ -360,7 +360,9 @@ For a Weibo author, the latest execution flow is:
 5. Generate or run validation cases and persist validation results.
 6. Apply manual review corrections when needed.
 7. If low-confidence units remain high, build a stricter pruned unit.
-8. Package the resulting unit as Agent Prompt, Skill, and QA artifacts.
+8. Run v2.1 concept discovery on the chosen final unit.
+9. Review `concept-review-template.json` and apply accepted concepts into `profile.concepts`.
+10. Package the resulting unit as Agent Prompt, Skill, and QA artifacts.
 
 Recommended command for a complete first build:
 
@@ -370,8 +372,23 @@ node scripts/ajm.js build-weibo-author-unit \
   --author-id 2611641261 \
   --author-handle sanshu \
   --out dist/weibo-2611641261 \
-  --config configs/weibo.default.json
+  --config configs/weibo.default.json \
+  --discover-concepts true
 ```
+
+For stricter control, run concept discovery explicitly after pruning:
+
+```sh
+node scripts/ajm.js discover-concepts \
+  --units dist/weibo-2611641261-pruned/pruned-judgment-units.json \
+  --out dist/weibo-2611641261-pruned/review/concepts
+
+node scripts/ajm.js apply-concept-review \
+  --review dist/weibo-2611641261-pruned/review/concepts/concept-review-template.json \
+  --profile dist/weibo-2611641261-pruned/data/profiles/weibo-2611641261/author-judgment-profile.json
+```
+
+Pure machine-discovered term clusters default to `review_decision: "review"`; only reviewed `accept` concepts are written into the final profile.
 
 If no hand-written validation cases exist yet, generate a baseline validation set:
 

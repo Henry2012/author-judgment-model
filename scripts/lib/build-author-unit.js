@@ -5,6 +5,7 @@ const { exportReviewPack } = require("./review-pack");
 const { packageAuthorUnit } = require("./package-author");
 const { suggestWeiboConfigFromFile } = require("./config-suggest");
 const { evaluateQualityGateFromFiles } = require("./quality-gate");
+const { discoverConceptCandidatesFromFiles, applyConceptReviewToProfileFromFiles } = require("./concept-discovery");
 
 function writeJson(filePath, value) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -42,6 +43,21 @@ function buildWeiboAuthorUnit(options) {
     validationCasesPath: options.validationCasesPath,
     validationId: options.validationId
   });
+  const conceptDiscovery = options.discoverConcepts
+    ? discoverConceptCandidatesFromFiles({
+        unitsPath: distill.unitsPath,
+        outDir: path.join(reviewDir, "concepts"),
+        minEvidenceUnits: options.minConceptEvidenceUnits,
+        maxCandidates: options.maxConceptCandidates
+      })
+    : null;
+  const conceptApply = conceptDiscovery
+    ? applyConceptReviewToProfileFromFiles({
+        reviewPath: conceptDiscovery.paths.reviewTemplatePath,
+        profilePath: distill.profilePath,
+        reviewId: options.conceptReviewId || `${distill.slug}_concept_discovery_001`
+      })
+    : null;
   const review = exportReviewPack({
     postsPath: distill.postsPath,
     unitsPath: distill.unitsPath,
@@ -76,10 +92,17 @@ function buildWeiboAuthorUnit(options) {
     package_type: "weibo_author_judgment_unit_build",
     version: "0.1.0",
     profile_id: distill.slug,
-    stages: packageBlocked ? ["distill", "review-pack", "quality-gate"] : ["distill", "review-pack", "quality-gate", "package-author"],
+    stages: [
+      "distill",
+      ...(conceptDiscovery ? ["concept-discovery", "apply-concept-review"] : []),
+      "review-pack",
+      "quality-gate",
+      ...(packageBlocked ? [] : ["package-author"])
+    ],
     config: {
       path: configPath,
-      generated: Boolean(options.suggestConfig)
+      generated: Boolean(options.suggestConfig),
+      concept_discovery_enabled: Boolean(conceptDiscovery)
     },
     artifacts: {
       data: dataDir,
@@ -102,6 +125,16 @@ function buildWeiboAuthorUnit(options) {
       risks: review.risks,
       sample_units: review.sample_units.length
     },
+    concept_discovery: conceptDiscovery
+      ? {
+          candidates: conceptDiscovery.candidates.length,
+          pass: conceptDiscovery.quality_gate.pass,
+          fail: conceptDiscovery.quality_gate.fail,
+          accepted: conceptApply.accepted,
+          review_template: conceptDiscovery.paths.reviewTemplatePath,
+          review_markdown: conceptDiscovery.paths.reviewMarkdownPath
+        }
+      : null,
     quality_gate: {
       status: qualityGate.status,
       score: qualityGate.score,

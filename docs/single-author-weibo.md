@@ -41,19 +41,23 @@ node scripts/ajm.js build-weibo-author-unit \
   --author-handle sanshu \
   --out dist/weibo-2611641261 \
   --validation-cases data/validation/weibo-2611641261/validation-cases.json \
-  --validation-id sanshu_baseline_validation_001
+  --validation-id sanshu_baseline_validation_001 \
+  --discover-concepts true
 ```
 
 This command produces the full handoff structure:
 
 - `data/`: normalized posts, judgment units, evidence maps, and profile
 - `review/`: machine report, sampled evidence, quality gate, checklist, and manual review template
+- `review/concepts/`: concept candidates, lightweight review template, and concept review summary when `--discover-concepts true`
 - `package/`: Agent prompt, Skill skeleton, QA entrypoint, manifest, and data files
 - `build-manifest.json`: paths, counts, risks, and stage summary
 
 If the quality gate returns `fail`, package generation is blocked by default. The command still writes `data/`, `review/`, `quality-gate.json`, and `build-manifest.json` so the failed build can be inspected and corrected before packaging. Use `--allow-package-on-fail true` only for local debugging.
 
 For a new Weibo author, change `--raw`, optionally pass `--author-id` and `--author-handle`, and use a matching `--config` if the author's domains are not covered by `configs/weibo.default.json`.
+
+Use `--discover-concepts true` for the v2.1 flow. It runs machine concept discovery, writes `review/concepts/concept-review-template.json`, auto-applies accepted pass candidates into `profile.concepts`, and records the stage in `build-manifest.json`. For serious use, inspect the concept review template and reject or edit noisy concepts before final packaging.
 
 Use `--suggest-config yes` if you need a first draft config generated inside the output directory:
 
@@ -156,6 +160,7 @@ The shipped extractor is a deterministic baseline with review, validation, quali
 - writes validation and review summaries back into the profile
 - can rebuild artifacts after manual review corrections
 - can create a stricter pruned unit by removing weak or low-confidence units
+- can discover concept candidates from repeated judgment units, generate concept cards, pass them through a lightweight review template, and write accepted concepts into the final profile
 
 This is intentionally conservative. LLM batch extraction is now an optional quality/coverage enhancement, not a prerequisite for the latest single-author package. For serious use today, prefer a quality-gated package, and use the pruned package when low noise matters more than broad recall.
 

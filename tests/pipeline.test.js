@@ -31,6 +31,11 @@ const { evaluateQualityGate } = require("../scripts/lib/quality-gate");
 const { applyReviewToProfileFromFiles } = require("../scripts/lib/apply-review");
 const { applyReviewCorrectionsFromFiles } = require("../scripts/lib/apply-review-corrections");
 const { pruneWeakUnitsFromFiles } = require("../scripts/lib/unit-quality");
+const {
+  discoverConceptCandidates,
+  exportConceptReviewPack,
+  applyConceptReviewToProfileFromFiles
+} = require("../scripts/lib/concept-discovery");
 
 const config = require("../configs/weibo.default.json");
 
@@ -825,6 +830,31 @@ test("builds a complete Weibo author unit from raw input", () => {
   assert.equal(manifest.artifacts.profile, result.distill.profilePath);
 });
 
+test("builds an author unit with v2.1 concept discovery review artifacts", () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "ajm-full-build-concepts-"));
+  const rawPath = path.join(tmp, "raw-index.json");
+  fs.writeFileSync(rawPath, JSON.stringify(sampleRaw(), null, 2));
+
+  const result = buildWeiboAuthorUnit({
+    rawPath,
+    authorHandle: "sample",
+    outDir: path.join(tmp, "author-unit"),
+    configPath: path.join(process.cwd(), "configs/weibo.default.json"),
+    discoverConcepts: true,
+    minConceptEvidenceUnits: 1,
+    minPosts: 1,
+    minJudgmentUnits: 1,
+    minMentalModels: 1
+  });
+
+  const manifest = JSON.parse(fs.readFileSync(result.manifestPath, "utf8"));
+  assert.ok(manifest.stages.includes("concept-discovery"));
+  assert.ok(manifest.stages.includes("apply-concept-review"));
+  assert.ok(fs.existsSync(path.join(tmp, "author-unit", "review", "concepts", "concept-candidates.json")));
+  assert.ok(fs.existsSync(path.join(tmp, "author-unit", "review", "concepts", "concept-review-template.json")));
+  assert.ok(fs.existsSync(path.join(tmp, "author-unit", "review", "concepts", "concept-review.md")));
+});
+
 test("blocks package generation when the quality gate fails", () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "ajm-full-build-blocked-"));
   const rawPath = path.join(tmp, "raw-index.json");
@@ -1508,4 +1538,165 @@ test("rebuilds profile and evidence maps from imported LLM judgment units", () =
   assert.ok(profile.mental_models[0].definition.includes("Recurring decision rule"));
   assert.ok(profile.mental_models[0].definition.includes("Evaluate housing by current variables"));
   assert.equal(profile.decision_heuristics[0].default_action, "Evaluate housing by current variables rather than past price gains.");
+});
+
+test("discovers concept cards from repeated semantic judgment units", () => {
+  const units = [
+    {
+      unit_id: "llm_unit_000001",
+      source_post_id: "P1",
+      created_at: "2026-05-01",
+      domain: "ai_tech_industry_logic",
+      claim: "光通信和算力链仍是人工智能主线。",
+      object: "光通信算力链",
+      variables: ["industry_demand", "technology_mainline", "supply_constraint"],
+      concept_ids: ["optical_ai_chain"],
+      trigger_conditions: ["问题询问光通信、光模块或算力链"],
+      boundary_conditions: ["需要实时行情和估值验证"],
+      counterexamples: ["只问照明或摄影时不适用"],
+      time_scope: "2026-05 corpus",
+      confidence: "high",
+      evidence_strength: "direct",
+      evidence_excerpt: "光通信和算力链仍是人工智能主线。"
+    },
+    {
+      unit_id: "llm_unit_000002",
+      source_post_id: "P2",
+      created_at: "2026-05-02",
+      domain: "trend_structure_timing",
+      claim: "光模块加速时不要追涨，回踩再看。",
+      object: "光模块交易时机",
+      variables: ["trend_direction", "acceleration_phase", "entry_timing"],
+      concept_ids: ["optical_ai_chain"],
+      trigger_conditions: ["问题询问还能不能买或继续持有"],
+      boundary_conditions: ["不能给确定性买卖指令"],
+      counterexamples: ["没有趋势证据时不适用"],
+      confidence: "high",
+      evidence_strength: "direct",
+      evidence_excerpt: "光模块加速时不要追涨，回踩再看。"
+    },
+    {
+      unit_id: "llm_unit_000003",
+      source_post_id: "P3",
+      created_at: "2026-05-03",
+      domain: "risk_position_management",
+      claim: "光板块交易要用仓位和止损约束。",
+      object: "光板块仓位管理",
+      variables: ["position_size", "stop_loss"],
+      concept_ids: ["optical_ai_chain"],
+      trigger_conditions: ["问题同时涉及标的、买入和持有期限"],
+      boundary_conditions: ["不能替代个股交易计划"],
+      counterexamples: ["脱离交易计划时不适用"],
+      confidence: "medium",
+      evidence_strength: "direct",
+      evidence_excerpt: "光板块交易要用仓位和止损约束。"
+    }
+  ];
+
+  const result = discoverConceptCandidates({ units, minEvidenceUnits: 3 });
+  const concept = result.candidates.find((item) => item.id === "optical_ai_chain");
+
+  assert.ok(concept);
+  assert.equal(concept.quality.status, "pass");
+  assert.deepEqual(concept.domains, ["ai_tech_industry_logic", "trend_structure_timing", "risk_position_management"]);
+  assert.ok(concept.aliases.some((alias) => alias.includes("光")));
+  assert.ok(concept.trigger_conditions.length >= 3);
+  assert.ok(concept.boundary_conditions.length >= 3);
+  assert.ok(concept.counterexamples.length >= 3);
+  assert.deepEqual(concept.evidence_unit_ids, ["llm_unit_000001", "llm_unit_000002", "llm_unit_000003"]);
+});
+
+test("discovers concept candidates from repeated object terms without concept ids", () => {
+  const units = [
+    {
+      unit_id: "unit_000001",
+      source_post_id: "A1",
+      created_at: "2025-12-01",
+      domain: "real_estate",
+      claim: "没有房产税，就没有房地产斩杀线。",
+      object: "房地产斩杀线",
+      variables: ["exit_cost", "liquidity"],
+      confidence: "medium",
+      evidence_strength: "direct",
+      evidence_excerpt: "没有房产税，就没有房地产斩杀线。"
+    },
+    {
+      unit_id: "unit_000002",
+      source_post_id: "A2",
+      created_at: "2025-12-02",
+      domain: "real_estate",
+      claim: "斩杀线来自房产税、信用机制和最低支付线。",
+      object: "斩杀线机制",
+      variables: ["exit_cost", "household_balance_sheet"],
+      confidence: "medium",
+      evidence_strength: "direct",
+      evidence_excerpt: "斩杀线来自房产税、信用机制和最低支付线。"
+    },
+    {
+      unit_id: "unit_000003",
+      source_post_id: "A3",
+      created_at: "2025-12-03",
+      domain: "real_estate",
+      claim: "中国房产没有清晰斩杀线，所以不能照搬美国房地产判断。",
+      object: "斩杀线差异",
+      variables: ["city_opportunity", "exit_cost"],
+      confidence: "medium",
+      evidence_strength: "direct",
+      evidence_excerpt: "中国房产没有清晰斩杀线，所以不能照搬美国房地产判断。"
+    }
+  ];
+
+  const result = discoverConceptCandidates({ units, minEvidenceUnits: 3 });
+  const concept = result.candidates.find((item) => item.aliases.includes("斩杀线"));
+
+  assert.ok(concept);
+  assert.equal(concept.quality.status, "pass");
+  assert.equal(concept.domains[0], "real_estate");
+  assert.ok(concept.trigger_conditions.some((item) => item.includes("斩杀线")));
+  assert.ok(concept.boundary_conditions.some((item) => item.includes("实时") || item.includes("历史语料")));
+});
+
+test("exports concept review pack and applies accepted concepts to profile", () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "ajm-concepts-"));
+  const profilePath = path.join(tmp, "author-judgment-profile.json");
+  const reviewDir = path.join(tmp, "review");
+  const profile = {
+    profile_id: "weibo-123456",
+    platform: "weibo",
+    author_id: "123456",
+    concepts: [],
+    update_history: []
+  };
+  const candidates = [
+    {
+      id: "housing_kill_line",
+      name: "房地产斩杀线",
+      aliases: ["斩杀线", "房地产斩杀线"],
+      domains: ["real_estate"],
+      trigger_conditions: ["问题询问斩杀线或房产税约束"],
+      required_variables: ["exit_cost", "liquidity"],
+      boundary_conditions: ["需要实时市场数据验证"],
+      counterexamples: ["不适用于纯装修问题"],
+      time_scope: "2025-12 corpus",
+      evidence_unit_ids: ["unit_000001", "unit_000002", "unit_000003"],
+      quality: { status: "pass", support_count: 3, failures: [] }
+    }
+  ];
+  fs.writeFileSync(profilePath, JSON.stringify(profile, null, 2));
+
+  const exported = exportConceptReviewPack({ candidates, outDir: reviewDir });
+  assert.ok(fs.existsSync(exported.candidatesPath));
+  assert.ok(fs.existsSync(exported.reviewTemplatePath));
+  assert.ok(fs.existsSync(exported.reviewMarkdownPath));
+
+  const applied = applyConceptReviewToProfileFromFiles({
+    reviewPath: exported.reviewTemplatePath,
+    profilePath,
+    reviewId: "concept_review_test"
+  });
+  const updated = JSON.parse(fs.readFileSync(profilePath, "utf8"));
+
+  assert.equal(applied.accepted, 1);
+  assert.equal(updated.concepts[0].id, "housing_kill_line");
+  assert.equal(updated.update_history.at(-1).event, "concepts_applied");
 });

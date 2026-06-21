@@ -20,6 +20,10 @@ const { applyReviewToProfileFromFiles } = require("./lib/apply-review");
 const { applyReviewCorrectionsFromFiles } = require("./lib/apply-review-corrections");
 const { generateValidationCasesFromFiles } = require("./lib/validation-case-generator");
 const { pruneWeakUnitsFromFiles } = require("./lib/unit-quality");
+const {
+  discoverConceptCandidatesFromFiles,
+  applyConceptReviewToProfileFromFiles
+} = require("./lib/concept-discovery");
 
 function parseArgs(argv) {
   const args = { _: [] };
@@ -43,6 +47,8 @@ function usage() {
     "  node scripts/ajm.js build-weibo-author-unit --raw <raw-index.json> --out <author-unit-dir> [--author-id <id>] [--author-handle <handle>] [--config configs/weibo.default.json] [--suggest-config yes] [--llm-results <results.jsonl>] [--validation-cases <cases.json>] [--samples-per-domain 3] [--min-posts 50] [--min-judgment-units 50] [--allow-package-on-fail true]",
     "  node scripts/ajm.js suggest-weibo-config --raw <raw-index.json> [--author-id <id>] [--author-handle <handle>] [--out <config.json>] [--max-domains 6]",
     "  node scripts/ajm.js package-author --profile <author-judgment-profile.json> --units <judgment-units.json> --out <bundle-dir> [--config configs/weibo.default.json]",
+    "  node scripts/ajm.js discover-concepts --units <judgment-units.json> --out <concept-review-dir> [--min-evidence-units 3] [--max-candidates 30]",
+    "  node scripts/ajm.js apply-concept-review --review <concept-review-template.json> --profile <author-judgment-profile.json> [--out <profile.json>] [--review-id <id>]",
     "  node scripts/ajm.js review-pack --posts <posts.json> --units <judgment-units.json> --evidence-maps <evidence-maps.json> --profile <author-judgment-profile.json> --out <review-dir> [--samples-per-domain 3]",
     "  node scripts/ajm.js quality-gate --posts <posts.json> --units <judgment-units.json> --evidence-maps <evidence-maps.json> --profile <author-judgment-profile.json> [--out <quality-gate.json>] [--min-posts 50] [--min-judgment-units 50]",
     "  node scripts/ajm.js apply-review --review <manual-review-template.json> --profile <author-judgment-profile.json> [--out <profile.json>] [--review-id <id>]",
@@ -132,6 +138,10 @@ function main() {
       warnGeneralUnitRatio: args.warnGeneralUnitRatio,
       failGeneralUnitRatio: args.failGeneralUnitRatio,
       warnLowConfidenceUnitRatio: args.warnLowConfidenceUnitRatio,
+      discoverConcepts: args.discoverConcepts === "yes" || args.discoverConcepts === "true",
+      minConceptEvidenceUnits: args.minConceptEvidenceUnits,
+      maxConceptCandidates: args.maxConceptCandidates,
+      conceptReviewId: args.conceptReviewId,
       allowPackageOnFail: args.allowPackageOnFail
     });
     console.log(JSON.stringify(result, null, 2));
@@ -164,6 +174,36 @@ function main() {
       unitsPath: path.resolve(args.units),
       configPath: args.config ? path.resolve(args.config) : undefined,
       outDir: path.resolve(args.out)
+    });
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+
+  if (command === "discover-concepts") {
+    if (!args.units || !args.out) {
+      console.error(usage());
+      process.exit(1);
+    }
+    const result = discoverConceptCandidatesFromFiles({
+      unitsPath: path.resolve(args.units),
+      outDir: path.resolve(args.out),
+      minEvidenceUnits: args.minEvidenceUnits,
+      maxCandidates: args.maxCandidates
+    });
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+
+  if (command === "apply-concept-review") {
+    if (!args.review || !args.profile) {
+      console.error(usage());
+      process.exit(1);
+    }
+    const result = applyConceptReviewToProfileFromFiles({
+      reviewPath: path.resolve(args.review),
+      profilePath: path.resolve(args.profile),
+      outPath: args.out ? path.resolve(args.out) : undefined,
+      reviewId: args.reviewId
     });
     console.log(JSON.stringify(result, null, 2));
     return;

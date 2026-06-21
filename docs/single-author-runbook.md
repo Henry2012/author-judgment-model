@@ -31,9 +31,9 @@ Acceptance:
 
 - Test command exits `0`.
 
-## 0.1. AJM v2 Semantic Distillation Gate
+## 0.1. AJM v2.1 Semantic Distillation Gate
 
-The final package must preserve semantic concepts, not just keyword/domain matches.
+The final package must preserve semantic concepts, not just keyword/domain matches. Concepts can come from a reviewed author config or from v2.1 concept discovery.
 
 Required extraction targets:
 
@@ -53,6 +53,8 @@ Acceptance:
 - A concept must include aliases, linked domains, trigger conditions, boundary conditions, counterexamples, time scope, and evidence unit ids when evidence exists.
 - QA answers for concept questions must expose `matched_concept`, `trigger_conditions`, and `boundary_conditions`.
 - The browser package must classify concept-alias questions through the same concept layer as the CLI answer engine.
+- v2.1 concept discovery must produce `concept-candidates.json`, `concept-review-template.json`, and `concept-review.md`.
+- Accepted concepts from `concept-review-template.json` must be written into `profile.concepts` before final packaging.
 
 ## 1. Build First-Pass Author Unit
 
@@ -220,6 +222,49 @@ Acceptance:
 - Command exits `0`.
 - Validation status is `pass`.
 - Failed case count is `0`.
+
+## 7.1. Discover, Review, and Apply Concepts
+
+Run this step after choosing the final unit source. Prefer the strict unit when available.
+
+```sh
+node scripts/ajm.js discover-concepts \
+  --units "$STRICT_DIR/pruned-judgment-units.json" \
+  --out "$STRICT_DIR/review/concepts" \
+  --min-evidence-units 3 \
+  --max-candidates 30
+```
+
+Expected outputs:
+
+- `$STRICT_DIR/review/concepts/concept-candidates.json`
+- `$STRICT_DIR/review/concepts/concept-review-template.json`
+- `$STRICT_DIR/review/concepts/concept-review.md`
+
+Human review:
+
+- Open `concept-review.md` for a readable summary.
+- Edit `concept-review-template.json`.
+- Keep `review_decision: "accept"` only for real recurring concepts.
+- Set noisy or pseudo concepts to `review_decision: "reject"`.
+- Merge or rename aliases, trigger conditions, boundary conditions, and counterexamples when needed.
+
+Apply accepted concepts:
+
+```sh
+node scripts/ajm.js apply-concept-review \
+  --review "$STRICT_DIR/review/concepts/concept-review-template.json" \
+  --profile "$STRICT_DIR/data/profiles/$AUTHOR_SLUG/author-judgment-profile.json" \
+  --review-id "${AUTHOR_HANDLE}_concept_review_001"
+```
+
+Acceptance:
+
+- Command exits `0`.
+- Profile contains `concepts`.
+- Each accepted concept has aliases, linked domains, trigger conditions, boundary conditions, counterexamples, time scope, and evidence unit ids.
+- No rejected concept is written into `profile.concepts`.
+- Re-run strict validation or QA smoke tests when concept review materially changes answer routing.
 
 ## 8. Package Final Unit
 
